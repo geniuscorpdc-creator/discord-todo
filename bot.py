@@ -50,11 +50,17 @@ def build_pick_embed(
     embed = discord.Embed(
         title=thread.name,
         url=thread.jump_url,
-        description=f"**Remaining:** {open_count} of {total_count} to-dos",
+        description=f"**Remaining:** There is currently {open_count} to-do list items left to complete out of {total_count} to-dos that have added in total. ",
         color=0xFFD700,
     )
+
     embed.add_field(
-        name="Created",
+        name="You have been doing so well, keep up the good work! If you have any questions, I will be happy to help you out!",
+        value=discord.utils.format_dt(thread.created_at, style="D"),
+        inline=True,
+    )
+    embed.add_field(
+        name="This to-do list item was created on:",
         value=discord.utils.format_dt(thread.created_at, style="D"),
         inline=True,
     )
