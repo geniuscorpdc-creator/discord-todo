@@ -35,11 +35,10 @@ async def get_open_threads(
 ) -> tuple[list[discord.Thread], int]:
     """Return open threads and total active thread count for a channel."""
     threads = list(channel.threads)
-    guild_threads = await channel.guild.fetch_active_threads()
-    threads.extend(t for t in guild_threads.threads if t.parent_id == channel.id)
 
     all_active = list({thread.id: thread for thread in threads}.values())
     open_threads = [thread for thread in all_active if not is_completed(thread)]
+
     return open_threads, len(all_active)
 
 
