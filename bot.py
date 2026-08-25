@@ -599,7 +599,14 @@ async def set_status(
         )
         return
 
-    if new_name == thread.name:
+    completed_id = get_completed_channel_id()
+    should_move = (
+        status.value == COMPLETED_TAG
+        and completed_id is not None
+        and (thread.parent_id is None or thread.parent_id != completed_id)
+    )
+
+    if new_name == thread.name and not should_move:
         await interaction.response.send_message(
             f"Already set to **{status.name}**.",
             ephemeral=True,
@@ -608,7 +615,7 @@ async def set_status(
 
     await interaction.response.defer(ephemeral=True, thinking=True)
 
-    if status.value == COMPLETED_TAG and get_completed_channel_id() is not None:
+    if should_move:
         new_thread, err = await move_thread_to_completed(bot, thread, new_name)
         if new_thread is not None:
             msg = f"Marked complete and moved to {new_thread.mention}."
@@ -648,7 +655,13 @@ async def complete(interaction: discord.Interaction) -> None:
         return
 
     thread = interaction.channel
-    if is_completed(thread):
+    completed_id = get_completed_channel_id()
+    should_move = (
+        completed_id is not None
+        and (thread.parent_id is None or thread.parent_id != completed_id)
+    )
+
+    if is_completed(thread) and not should_move:
         await interaction.response.send_message("Already marked complete.", ephemeral=True)
         return
 
@@ -662,7 +675,7 @@ async def complete(interaction: discord.Interaction) -> None:
 
     await interaction.response.defer(ephemeral=True, thinking=True)
 
-    if get_completed_channel_id() is not None:
+    if should_move:
         new_thread, err = await move_thread_to_completed(bot, thread, new_name)
         if new_thread is not None:
             msg = f"Marked complete and moved to {new_thread.mention}."
