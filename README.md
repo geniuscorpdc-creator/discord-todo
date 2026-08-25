@@ -128,10 +128,12 @@ In your Railway service, open **Variables** and add:
 | Variable | Value |
 |---|---|
 | `DISCORD_TOKEN` | Your bot token from the Discord Developer Portal |
-| `TODO_CHANNEL_ID` | *(optional/legacy)* Auto-migrated into `channels.json` on startup |
 | `GUILD_ID` | Your Discord server ID |
+| `TODO_CHANNEL_IDS` | **(recommended on Railway)** Comma-separated list of to-do channel IDs. When set, this overrides `channels.json` and survives redeploys. Example: `123456789,987654321` |
+| `COMPLETED_CHANNEL_ID` | **(recommended on Railway)** Single channel ID (text or forum) where completed threads are moved. When set, overrides `config.json`. |
+| `TODO_CHANNEL_ID` | *(legacy)* Single channel; auto-migrated into `channels.json` on startup. Prefer `TODO_CHANNEL_IDS`. |
 
-Note: `channels.json` is stored on the container filesystem. On Railway, this file is ephemeral between deployments unless you attach a volume. If you rely on the registry, either mount a volume at the repo path or re-run `/register-channel` after each deploy.
+**Important on Railway:** `channels.json` and `config.json` are stored on the container filesystem and are wiped on every redeploy. Use `TODO_CHANNEL_IDS` and `COMPLETED_CHANNEL_ID` env vars for persistence, or mount a Railway Volume at the repo path.
 
 These are the same values from your local `.env` file.
 
