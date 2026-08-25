@@ -472,8 +472,17 @@ async def set_status(
         )
         return
 
-    await thread.edit(name=new_name)
-    await interaction.response.send_message(
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    try:
+        await thread.edit(name=new_name)
+    except discord.HTTPException as e:
+        await interaction.followup.send(
+            f"Failed to rename thread: {e}. "
+            "Discord rate-limits thread renames (usually 2 per 10 minutes).",
+            ephemeral=True,
+        )
+        return
+    await interaction.followup.send(
         f"Status set to **{status.name}**: {new_name}",
         ephemeral=True,
     )
@@ -504,8 +513,17 @@ async def complete(interaction: discord.Interaction) -> None:
         )
         return
 
-    await thread.edit(name=new_name)
-    await interaction.response.send_message(
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    try:
+        await thread.edit(name=new_name)
+    except discord.HTTPException as e:
+        await interaction.followup.send(
+            f"Failed to rename thread: {e}. "
+            "Discord rate-limits thread renames (usually 2 per 10 minutes).",
+            ephemeral=True,
+        )
+        return
+    await interaction.followup.send(
         f"Marked complete: **{new_name}**",
         ephemeral=True,
     )
@@ -602,23 +620,24 @@ async def create_todo_channel(
     if category is None and isinstance(interaction.channel, discord.TextChannel):
         category = interaction.channel.category
 
+    await interaction.response.defer(ephemeral=True, thinking=True)
     try:
         new_channel = await guild.create_text_channel(name=name, category=category)
     except discord.Forbidden:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "I don't have permission to create channels here.",
             ephemeral=True,
         )
         return
     except discord.HTTPException as e:
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"Failed to create channel: {e}",
             ephemeral=True,
         )
         return
 
     add_channel_id(new_channel.id)
-    await interaction.response.send_message(
+    await interaction.followup.send(
         f"Created and registered {new_channel.mention}.",
         ephemeral=True,
     )
