@@ -1,59 +1,186 @@
+import json
 import os
 import random
+import re
+from pathlib import Path
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-TODO_CHANNEL_ID = int(os.getenv("TODO_CHANNEL_ID", "0"))
+LEGACY_TODO_CHANNEL_ID = int(os.getenv("TODO_CHANNEL_ID", "0"))
 GUILD_ID = os.getenv("GUILD_ID")
-COMPLETED_TAG = "[COMPLETED]"
+
+STATUS_TAGS = ["EASY", "MEDIUM", "HARD", "ELITE", "COMPLETED"]
+DIFFICULTY_TAGS = ["EASY", "MEDIUM", "HARD", "ELITE"]
+COMPLETED_TAG = "COMPLETED"
+
+TAG_PATTERN = re.compile(
+    r"^\s*(?:\[(?:EASY|MEDIUM|HARD|ELITE|COMPLETED)\]\s*)+",
+    re.IGNORECASE,
+)
+SINGLE_TAG_PATTERN = re.compile(
+    r"\[(EASY|MEDIUM|HARD|ELITE|COMPLETED)\]",
+    re.IGNORECASE,
+)
+
+CHANNELS_FILE = Path(__file__).parent / "channels.json"
+
+
+# ---------------------------------------------------------------------------
+# Channel registry
+# ---------------------------------------------------------------------------
+
+def load_channel_ids() -> list[int]:
+    if not CHANNELS_FILE.exists():
+        return []
+    try:
+        data = json.loads(CHANNELS_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(data, list):
+        return []
+    result: list[int] = []
+    for item in data:
+        try:
+            result.append(int(item))
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def save_channel_ids(ids: list[int]) -> None:
+    unique: list[int] = []
+    seen: set[int] = set()
+    for cid in ids:
+        if cid not in seen:
+            seen.add(cid)
+            unique.append(cid)
+    CHANNELS_FILE.write_text(json.dumps(unique, indent=2), encoding="utf-8")
+
+
+def add_channel_id(channel_id: int) -> bool:
+    ids = load_channel_ids()
+    if channel_id in ids:
+        return False
+    ids.append(channel_id)
+    save_channel_ids(ids)
+    return True
+
+
+def remove_channel_id(channel_id: int) -> bool:
+    ids = load_channel_ids()
+    if channel_id not in ids:
+        return False
+    ids = [cid for cid in ids if cid != channel_id]
+    save_channel_ids(ids)
+    return True
+
+
+def ensure_legacy_migrated() -> None:
+    """If a legacy TODO_CHANNEL_ID is set in .env, migrate it into the registry."""
+    if LEGACY_TODO_CHANNEL_ID and LEGACY_TODO_CHANNEL_ID not in load_channel_ids():
+        add_channel_id(LEGACY_TODO_CHANNEL_ID)
+
+
+# ---------------------------------------------------------------------------
+# Status tag helpers
+# ---------------------------------------------------------------------------
+
+def strip_tags(name: str) -> str:
+    """Remove any leading [STATUS] prefixes and return a cleaned title."""
+    return TAG_PATTERN.sub("", name).strip()
+
+
+def get_status(thread: discord.Thread) -> str | None:
+    """Return the uppercase status tag on the thread, or None if untagged."""
+    match = SINGLE_TAG_PATTERN.search(thread.name)
+    if match is None:
+        return None
+    return match.group(1).upper()
 
 
 def is_completed(thread: discord.Thread) -> bool:
-    return COMPLETED_TAG.upper() in thread.name.upper()
+    return get_status(thread) == COMPLETED_TAG
 
 
-async def get_channel(bot: commands.Bot) -> discord.abc.GuildChannel | None:
-    channel = bot.get_channel(TODO_CHANNEL_ID)
-    if channel is not None:
-        return channel
-    try:
-        fetched = await bot.fetch_channel(TODO_CHANNEL_ID)
-    except discord.HTTPException:
-        return None
-    if isinstance(fetched, discord.abc.GuildChannel):
-        return fetched
-    return None
+def apply_status(name: str, status: str) -> str:
+    return f"[{status.upper()}] {strip_tags(name)}".strip()
+
+
+# ---------------------------------------------------------------------------
+# Channel + thread helpers
+# ---------------------------------------------------------------------------
+
+async def get_channels(bot: commands.Bot) -> list[discord.abc.GuildChannel]:
+    channels: list[discord.abc.GuildChannel] = []
+    for cid in load_channel_ids():
+        channel = bot.get_channel(cid)
+        if channel is None:
+            try:
+                channel = await bot.fetch_channel(cid)
+            except discord.HTTPException:
+                continue
+        if isinstance(channel, discord.abc.GuildChannel):
+            channels.append(channel)
+    return channels
 
 
 async def get_open_threads(
-    channel: discord.abc.GuildChannel,
+    channels: list[discord.abc.GuildChannel],
 ) -> tuple[list[discord.Thread], int]:
-    """Return open threads and total active thread count for a channel."""
-    threads = list(channel.threads)
+    """Return open (non-completed) threads and total active thread count across all channels."""
+    seen: dict[int, discord.Thread] = {}
+    for channel in channels:
+        threads = getattr(channel, "threads", None)
+        if not threads:
+            continue
+        for thread in threads:
+            seen[thread.id] = thread
 
-    all_active = list({thread.id: thread for thread in threads}.values())
-    open_threads = [thread for thread in all_active if not is_completed(thread)]
-
+    all_active = list(seen.values())
+    open_threads = [t for t in all_active if not is_completed(t)]
     return open_threads, len(all_active)
 
+
+def filter_by_difficulty(
+    threads: list[discord.Thread],
+    difficulty: str | None,
+) -> list[discord.Thread]:
+    """Filter open threads by difficulty tag. None or 'ANY' = no filter."""
+    if difficulty is None or difficulty.upper() == "ANY":
+        return threads
+    target = difficulty.upper()
+    return [t for t in threads if get_status(t) == target]
+
+
+# ---------------------------------------------------------------------------
+# Embeds
+# ---------------------------------------------------------------------------
 
 def build_pick_embed(
     thread: discord.Thread,
     open_count: int,
     total_count: int,
+    difficulty: str | None = None,
 ) -> discord.Embed:
+    filter_label = (
+        f" ({difficulty.title()})"
+        if difficulty and difficulty.upper() != "ANY"
+        else ""
+    )
+    description = (
+        f"**Remaining{filter_label}:** There is currently {open_count} to-do list "
+        f"item(s) matching out of {total_count} total to-dos added."
+    )
     embed = discord.Embed(
         title=thread.name,
         url=thread.jump_url,
-        description=(
-            f"**Remaining:** There is currently {open_count} to-do list items "
-            f"left to complete out of {total_count} to-dos that have been added in total."
-        ),
+        description=description,
         color=0xFFD700,
     )
 
@@ -72,22 +199,47 @@ def build_pick_embed(
         inline=True,
     )
 
+    status = get_status(thread)
+    if status and status != COMPLETED_TAG:
+        embed.add_field(name="Difficulty", value=status.title(), inline=True)
+
     embed.set_footer(text="Your OSRS To-Do")
     return embed
 
 
-def build_all_done_embed() -> discord.Embed:
+def build_all_done_embed(difficulty: str | None = None) -> discord.Embed:
+    if difficulty and difficulty.upper() != "ANY":
+        title = f"No open {difficulty.title()} tasks!"
+        desc = (
+            f"There are no open {difficulty.title()} to-dos right now. "
+            "Try a different difficulty."
+        )
+    else:
+        title = "All to-dos complete!"
+        desc = "Nothing left to pick. Time to celebrate or add more goals!"
+    return discord.Embed(title=title, description=desc, color=0x57F287)
+
+
+def build_no_channels_embed() -> discord.Embed:
     return discord.Embed(
-        title="All to-dos complete!",
-        description="Nothing left to pick. Time to celebrate or add more goals!",
-        color=0x57F287,
+        title="No to-do channels registered",
+        description=(
+            "Register a channel with `/register-channel` (run it in the channel), "
+            "or create a new one with `/create-todo-channel name:<name>`."
+        ),
+        color=0xED4245,
     )
 
 
+# ---------------------------------------------------------------------------
+# Views
+# ---------------------------------------------------------------------------
+
 class PickAgainView(discord.ui.View):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: commands.Bot, difficulty: str | None):
         super().__init__(timeout=300)
         self.bot = bot
+        self.difficulty = difficulty
 
     @discord.ui.button(
         label="Pick Again",
@@ -99,28 +251,93 @@ class PickAgainView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button,
     ) -> None:
-        channel = await get_channel(self.bot)
-        if channel is None:
-            await interaction.response.edit_message(
-                content="To-do channel not found. Check TODO_CHANNEL_ID in .env.",
-                embed=None,
-                view=None,
-            )
-            return
+        await do_pick(interaction, self.bot, self.difficulty, edit=True)
 
-        open_threads, total = await get_open_threads(channel)
-        if not open_threads:
-            await interaction.response.edit_message(
-                content=None,
-                embed=build_all_done_embed(),
-                view=None,
-            )
-            return
+    @discord.ui.button(
+        label="Change Difficulty",
+        style=discord.ButtonStyle.secondary,
+    )
+    async def change_difficulty(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        view = DifficultySelectView(self.bot)
+        await interaction.response.edit_message(
+            content="Pick a difficulty:",
+            embed=None,
+            view=view,
+        )
 
-        thread = random.choice(open_threads)
-        embed = build_pick_embed(thread, len(open_threads), total)
-        await interaction.response.edit_message(embed=embed, view=self)
 
+class DifficultySelect(discord.ui.Select):
+    def __init__(self, bot: commands.Bot):
+        options = [
+            discord.SelectOption(label="Any", value="ANY", description="Any open to-do"),
+            discord.SelectOption(label="Easy", value="EASY"),
+            discord.SelectOption(label="Medium", value="MEDIUM"),
+            discord.SelectOption(label="Hard", value="HARD"),
+            discord.SelectOption(label="Elite", value="ELITE"),
+        ]
+        super().__init__(
+            placeholder="Choose a difficulty...",
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        choice = self.values[0]
+        await do_pick(interaction, self.bot, choice, edit=True)
+
+
+class DifficultySelectView(discord.ui.View):
+    def __init__(self, bot: commands.Bot):
+        super().__init__(timeout=300)
+        self.add_item(DifficultySelect(bot))
+
+
+async def do_pick(
+    interaction: discord.Interaction,
+    bot: commands.Bot,
+    difficulty: str | None,
+    edit: bool,
+) -> None:
+    channels = await get_channels(bot)
+    if not channels:
+        embed = build_no_channels_embed()
+        if edit:
+            await interaction.response.edit_message(content=None, embed=embed, view=None)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    open_threads, total = await get_open_threads(channels)
+    filtered = filter_by_difficulty(open_threads, difficulty)
+
+    if not filtered:
+        embed = build_all_done_embed(difficulty)
+        view = PickAgainView(bot, difficulty)
+        view.pick_again.disabled = True
+        if edit:
+            await interaction.response.edit_message(content=None, embed=embed, view=view)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        return
+
+    thread = random.choice(filtered)
+    embed = build_pick_embed(thread, len(filtered), total, difficulty)
+    view = PickAgainView(bot, difficulty)
+    if edit:
+        await interaction.response.edit_message(content=None, embed=embed, view=view)
+    else:
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+# ---------------------------------------------------------------------------
+# Bot
+# ---------------------------------------------------------------------------
 
 class TodoBot(commands.Bot):
     def __init__(self) -> None:
@@ -141,48 +358,93 @@ bot = TodoBot()
 
 @bot.event
 async def on_ready() -> None:
-    channel = await get_channel(bot)
-    if channel is None:
-        print(f"Warning: TODO_CHANNEL_ID {TODO_CHANNEL_ID} not found or inaccessible.")
+    ensure_legacy_migrated()
+    channels = await get_channels(bot)
+    if not channels:
+        print("Warning: no to-do channels registered. Use /register-channel or /create-todo-channel.")
     else:
-        print(f"Watching to-do channel: #{channel.name} ({channel.id})")
+        names = ", ".join(f"#{c.name} ({c.id})" for c in channels)
+        print(f"Watching to-do channels: {names}")
     print(f"Logged in as {bot.user}")
 
 
+# ---------------------------------------------------------------------------
+# Slash commands
+# ---------------------------------------------------------------------------
+
 @bot.tree.command(
     name="pick-todo",
-    description="Pick a random open OSRS to-do thread",
+    description="Pick a random open OSRS to-do by difficulty",
 )
 async def pick_todo(interaction: discord.Interaction) -> None:
-    channel = await get_channel(bot)
-    if channel is None:
+    channels = await get_channels(bot)
+    if not channels:
         await interaction.response.send_message(
-            "To-do channel not configured or not found. Check TODO_CHANNEL_ID in .env.",
+            embed=build_no_channels_embed(),
             ephemeral=True,
         )
         return
 
-    open_threads, total = await get_open_threads(channel)
-    if not open_threads:
-        await interaction.response.send_message(
-            embed=build_all_done_embed(),
-            ephemeral=True,
-        )
-        return
-
-    thread = random.choice(open_threads)
-    embed = build_pick_embed(thread, len(open_threads), total)
-    view = PickAgainView(bot)
+    view = DifficultySelectView(bot)
     await interaction.response.send_message(
-        embed=embed,
+        content="Pick a difficulty:",
         view=view,
+        ephemeral=True,
+    )
+
+
+STATUS_CHOICES = [
+    app_commands.Choice(name="Easy", value="EASY"),
+    app_commands.Choice(name="Medium", value="MEDIUM"),
+    app_commands.Choice(name="Hard", value="HARD"),
+    app_commands.Choice(name="Elite", value="ELITE"),
+    app_commands.Choice(name="Completed", value="COMPLETED"),
+]
+
+
+@bot.tree.command(
+    name="set-status",
+    description="Set the status/difficulty of the current to-do thread",
+)
+@app_commands.choices(status=STATUS_CHOICES)
+async def set_status(
+    interaction: discord.Interaction,
+    status: app_commands.Choice[str],
+) -> None:
+    if not isinstance(interaction.channel, discord.Thread):
+        await interaction.response.send_message(
+            "Run this command inside a to-do thread.",
+            ephemeral=True,
+        )
+        return
+
+    thread = interaction.channel
+    new_name = apply_status(thread.name, status.value)
+
+    if len(new_name) > 100:
+        await interaction.response.send_message(
+            "Cannot rename: title would exceed Discord's 100 character limit.",
+            ephemeral=True,
+        )
+        return
+
+    if new_name == thread.name:
+        await interaction.response.send_message(
+            f"Already set to **{status.name}**.",
+            ephemeral=True,
+        )
+        return
+
+    await thread.edit(name=new_name)
+    await interaction.response.send_message(
+        f"Status set to **{status.name}**: {new_name}",
         ephemeral=True,
     )
 
 
 @bot.tree.command(
     name="complete",
-    description="Mark this to-do thread as completed",
+    description="Mark this to-do thread as completed (alias for /set-status Completed)",
 )
 async def complete(interaction: discord.Interaction) -> None:
     if not isinstance(interaction.channel, discord.Thread):
@@ -194,13 +456,10 @@ async def complete(interaction: discord.Interaction) -> None:
 
     thread = interaction.channel
     if is_completed(thread):
-        await interaction.response.send_message(
-            "Already marked complete.",
-            ephemeral=True,
-        )
+        await interaction.response.send_message("Already marked complete.", ephemeral=True)
         return
 
-    new_name = f"{COMPLETED_TAG} {thread.name}"
+    new_name = apply_status(thread.name, COMPLETED_TAG)
     if len(new_name) > 100:
         await interaction.response.send_message(
             "Cannot rename: title would exceed Discord's 100 character limit.",
@@ -215,11 +474,165 @@ async def complete(interaction: discord.Interaction) -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Channel management commands
+# ---------------------------------------------------------------------------
+
+@bot.tree.command(
+    name="register-channel",
+    description="Register a channel as a to-do channel (defaults to current channel)",
+)
+@app_commands.describe(channel="The channel to register (defaults to the current channel)")
+@app_commands.default_permissions(manage_channels=True)
+async def register_channel(
+    interaction: discord.Interaction,
+    channel: discord.TextChannel | None = None,
+) -> None:
+    target = channel or interaction.channel
+    if not isinstance(target, discord.TextChannel):
+        await interaction.response.send_message(
+            "Please specify a text channel (or run this from inside one).",
+            ephemeral=True,
+        )
+        return
+
+    added = add_channel_id(target.id)
+    if added:
+        await interaction.response.send_message(
+            f"Registered {target.mention} as a to-do channel.",
+            ephemeral=True,
+        )
+    else:
+        await interaction.response.send_message(
+            f"{target.mention} is already registered.",
+            ephemeral=True,
+        )
+
+
+@bot.tree.command(
+    name="unregister-channel",
+    description="Unregister a channel from the to-do registry",
+)
+@app_commands.describe(channel="The channel to unregister (defaults to the current channel)")
+@app_commands.default_permissions(manage_channels=True)
+async def unregister_channel(
+    interaction: discord.Interaction,
+    channel: discord.TextChannel | None = None,
+) -> None:
+    target = channel or interaction.channel
+    if not isinstance(target, discord.TextChannel):
+        await interaction.response.send_message(
+            "Please specify a text channel (or run this from inside one).",
+            ephemeral=True,
+        )
+        return
+
+    removed = remove_channel_id(target.id)
+    if removed:
+        await interaction.response.send_message(
+            f"Unregistered {target.mention}.",
+            ephemeral=True,
+        )
+    else:
+        await interaction.response.send_message(
+            f"{target.mention} was not registered.",
+            ephemeral=True,
+        )
+
+
+@bot.tree.command(
+    name="create-todo-channel",
+    description="Create a new text channel and register it as a to-do channel",
+)
+@app_commands.describe(
+    name="Name for the new channel",
+    category="Optional category to place it under",
+)
+@app_commands.default_permissions(manage_channels=True)
+async def create_todo_channel(
+    interaction: discord.Interaction,
+    name: str,
+    category: discord.CategoryChannel | None = None,
+) -> None:
+    guild = interaction.guild
+    if guild is None:
+        await interaction.response.send_message(
+            "This command must be used in a server.",
+            ephemeral=True,
+        )
+        return
+
+    if category is None and isinstance(interaction.channel, discord.TextChannel):
+        category = interaction.channel.category
+
+    try:
+        new_channel = await guild.create_text_channel(name=name, category=category)
+    except discord.Forbidden:
+        await interaction.response.send_message(
+            "I don't have permission to create channels here.",
+            ephemeral=True,
+        )
+        return
+    except discord.HTTPException as e:
+        await interaction.response.send_message(
+            f"Failed to create channel: {e}",
+            ephemeral=True,
+        )
+        return
+
+    add_channel_id(new_channel.id)
+    await interaction.response.send_message(
+        f"Created and registered {new_channel.mention}.",
+        ephemeral=True,
+    )
+
+
+@bot.tree.command(
+    name="list-todo-channels",
+    description="List all registered to-do channels",
+)
+async def list_todo_channels(interaction: discord.Interaction) -> None:
+    ids = load_channel_ids()
+    if not ids:
+        await interaction.response.send_message(
+            embed=build_no_channels_embed(),
+            ephemeral=True,
+        )
+        return
+
+    lines: list[str] = []
+    for cid in ids:
+        ch = bot.get_channel(cid)
+        if ch is None:
+            try:
+                ch = await bot.fetch_channel(cid)
+            except discord.HTTPException:
+                ch = None
+        if ch is None:
+            lines.append(f"- `{cid}` (not accessible)")
+        else:
+            lines.append(f"- {ch.mention} (`{cid}`)")
+
+    embed = discord.Embed(
+        title="Registered to-do channels",
+        description="\n".join(lines),
+        color=0x5865F2,
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# ---------------------------------------------------------------------------
+
 def main() -> None:
     if not DISCORD_TOKEN:
         raise SystemExit("Set DISCORD_TOKEN in .env")
-    if not TODO_CHANNEL_ID:
-        raise SystemExit("Set TODO_CHANNEL_ID in .env")
+    ensure_legacy_migrated()
+    if not load_channel_ids():
+        print(
+            "Note: no to-do channels registered yet. "
+            "Use /register-channel or /create-todo-channel after startup, "
+            "or set TODO_CHANNEL_ID in .env for legacy migration."
+        )
     bot.run(DISCORD_TOKEN)
 
 
