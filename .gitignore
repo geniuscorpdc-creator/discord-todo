@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 *.pyo
 channels.json
+config.json

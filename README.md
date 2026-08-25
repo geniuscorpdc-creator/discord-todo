@@ -19,9 +19,21 @@ A small Discord bot that randomly picks an open to-do thread across one or more 
 | `/register-channel [channel]` | Register a channel (defaults to current) as a to-do channel. |
 | `/unregister-channel [channel]` | Remove a channel from the registry. |
 | `/create-todo-channel name:<str> [category]` | Create a new text channel and auto-register it. |
-| `/list-todo-channels` | Show all registered channels. |
+| `/list-todo-channels` | Show all registered channels and the completed archive channel. |
+| `/set-completed-channel channel:<#channel>` | Enable "move on complete": completed threads are deleted from their current channel and recreated in the target channel. |
+| `/clear-completed-channel` | Disable move-on-complete; go back to in-place `[COMPLETED]` tagging. |
 
-Registered channel IDs are stored in `channels.json` alongside `bot.py`. Channel management commands require the **Manage Channels** permission by default.
+Registered channel IDs are stored in `channels.json` alongside `bot.py`. The completed-archive channel is stored in `config.json`. Channel management commands require the **Manage Channels** permission by default.
+
+### Completed archive channel (optional)
+
+If you set a completed channel with `/set-completed-channel`, marking a thread `[COMPLETED]` (via `/complete` or `/set-status Completed`) will:
+
+1. Create a new thread in the archive channel with the completed name (e.g. `[COMPLETED] [HARD] Fire cape`).
+2. Repost the **starter message only** (with a header noting the original author and source channel).
+3. **Delete** the original thread — replies and follow-up messages are lost.
+
+If the completed channel is not set, threads are just renamed in place (original behavior). This also side-steps Discord's thread-rename rate limit of ~2 per 10 minutes.
 
 All commands reply ephemerally (only visible to the person who ran them).
 

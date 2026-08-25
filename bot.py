@@ -29,6 +29,7 @@ SINGLE_TAG_PATTERN = re.compile(
 )
 
 CHANNELS_FILE = Path(__file__).parent / "channels.json"
+CONFIG_FILE = Path(__file__).parent / "config.json"
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +86,41 @@ def ensure_legacy_migrated() -> None:
     """If a legacy TODO_CHANNEL_ID is set in .env, migrate it into the registry."""
     if LEGACY_TODO_CHANNEL_ID and LEGACY_TODO_CHANNEL_ID not in load_channel_ids():
         add_channel_id(LEGACY_TODO_CHANNEL_ID)
+
+
+# ---------------------------------------------------------------------------
+# General config (config.json)
+# ---------------------------------------------------------------------------
+
+def load_config() -> dict:
+    if not CONFIG_FILE.exists():
+        return {}
+    try:
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_config(config: dict) -> None:
+    CONFIG_FILE.write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+
+def get_completed_channel_id() -> int | None:
+    value = load_config().get("completed_channel_id")
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def set_completed_channel_id(channel_id: int | None) -> None:
+    config = load_config()
+    if channel_id is None:
+        config.pop("completed_channel_id", None)
+    else:
+        config["completed_channel_id"] = int(channel_id)
+    save_config(config)
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +229,96 @@ def filter_by_difficulty(
         return threads
     target = difficulty.upper()
     return [t for t in threads if get_difficulty(t) == target]
+
+
+async def get_starter_content(thread: discord.Thread) -> tuple[str, discord.User | discord.Member | None]:
+    """Return (content, author) of the thread's starter message, best-effort.
+
+    Falls back to the oldest message in history if starter_message is unavailable.
+    """
+    starter = thread.starter_message
+    if starter is None:
+        try:
+            starter = await thread.parent.fetch_message(thread.id)  # type: ignore[union-attr]
+        except (discord.HTTPException, AttributeError):
+            starter = None
+    if starter is None:
+        try:
+            async for msg in thread.history(limit=1, oldest_first=True):
+                starter = msg
+                break
+        except discord.HTTPException:
+            starter = None
+    if starter is None:
+        return "", None
+    return starter.content or "", starter.author
+
+
+async def move_thread_to_completed(
+    bot: commands.Bot,
+    thread: discord.Thread,
+    new_name: str,
+) -> tuple[discord.Thread | None, str | None]:
+    """Recreate the thread in the configured completed channel and delete the original.
+
+    Returns (new_thread, error_message). If completed channel is not configured,
+    returns (None, None) so the caller can fall back to an in-place rename.
+    """
+    completed_channel_id = get_completed_channel_id()
+    if completed_channel_id is None:
+        return None, None
+
+    target = bot.get_channel(completed_channel_id)
+    if target is None:
+        try:
+            target = await bot.fetch_channel(completed_channel_id)
+        except discord.HTTPException:
+            return None, "Completed channel is not accessible. Reset it with /set-completed-channel."
+
+    if not isinstance(target, discord.TextChannel):
+        return None, "Completed channel is not a text channel. Reset it with /set-completed-channel."
+
+    starter_content, starter_author = await get_starter_content(thread)
+
+    try:
+        new_thread = await target.create_thread(
+            name=new_name,
+            type=discord.ChannelType.public_thread,
+            reason="Moved from active to-do channel on completion",
+        )
+    except discord.Forbidden:
+        return None, "I don't have permission to create threads in the completed channel."
+    except discord.HTTPException as e:
+        return None, f"Failed to create thread in completed channel: {e}"
+
+    header_lines: list[str] = []
+    if starter_author is not None:
+        header_lines.append(f"Originally posted by {starter_author.mention}")
+    header_lines.append(f"Archived from #{thread.parent.name}" if thread.parent else "Archived thread")
+    header = "\n".join(header_lines)
+
+    body_parts = [header]
+    if starter_content:
+        body_parts.append("")
+        body_parts.append(starter_content)
+    body = "\n".join(body_parts)
+
+    if len(body) > 2000:
+        body = body[:1997] + "..."
+
+    try:
+        await new_thread.send(body)
+    except discord.HTTPException:
+        pass
+
+    try:
+        await thread.delete()
+    except discord.HTTPException as e:
+        return new_thread, (
+            f"Created new thread {new_thread.mention}, but failed to delete original: {e}"
+        )
+
+    return new_thread, None
 
 
 # ---------------------------------------------------------------------------
@@ -473,6 +599,19 @@ async def set_status(
         return
 
     await interaction.response.defer(ephemeral=True, thinking=True)
+
+    if status.value == COMPLETED_TAG and get_completed_channel_id() is not None:
+        new_thread, err = await move_thread_to_completed(bot, thread, new_name)
+        if new_thread is not None:
+            msg = f"Marked complete and moved to {new_thread.mention}."
+            if err:
+                msg += f"\nNote: {err}"
+            await interaction.followup.send(msg, ephemeral=True)
+            return
+        if err:
+            await interaction.followup.send(err, ephemeral=True)
+            return
+
     try:
         await thread.edit(name=new_name)
     except discord.HTTPException as e:
@@ -514,6 +653,19 @@ async def complete(interaction: discord.Interaction) -> None:
         return
 
     await interaction.response.defer(ephemeral=True, thinking=True)
+
+    if get_completed_channel_id() is not None:
+        new_thread, err = await move_thread_to_completed(bot, thread, new_name)
+        if new_thread is not None:
+            msg = f"Marked complete and moved to {new_thread.mention}."
+            if err:
+                msg += f"\nNote: {err}"
+            await interaction.followup.send(msg, ephemeral=True)
+            return
+        if err:
+            await interaction.followup.send(err, ephemeral=True)
+            return
+
     try:
         await thread.edit(name=new_name)
     except discord.HTTPException as e:
@@ -669,12 +821,60 @@ async def list_todo_channels(interaction: discord.Interaction) -> None:
         else:
             lines.append(f"- {ch.mention} (`{cid}`)")
 
+    completed_id = get_completed_channel_id()
+    completed_line = "*(not set)*"
+    if completed_id is not None:
+        cch = bot.get_channel(completed_id)
+        if cch is None:
+            try:
+                cch = await bot.fetch_channel(completed_id)
+            except discord.HTTPException:
+                cch = None
+        completed_line = (
+            f"{cch.mention} (`{completed_id}`)"
+            if cch is not None
+            else f"`{completed_id}` (not accessible)"
+        )
+
     embed = discord.Embed(
         title="Registered to-do channels",
         description="\n".join(lines),
         color=0x5865F2,
     )
+    embed.add_field(name="Completed archive channel", value=completed_line, inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+@bot.tree.command(
+    name="set-completed-channel",
+    description="Set the channel where completed to-do threads are moved (deletes + recreates)",
+)
+@app_commands.describe(channel="The channel to send completed threads to")
+@app_commands.default_permissions(manage_channels=True)
+async def set_completed_channel(
+    interaction: discord.Interaction,
+    channel: discord.TextChannel,
+) -> None:
+    set_completed_channel_id(channel.id)
+    await interaction.response.send_message(
+        f"Completed threads will now be moved to {channel.mention}. "
+        "Note: the original thread (and all its messages/replies) will be **deleted** on completion; "
+        "only the starter message is preserved.",
+        ephemeral=True,
+    )
+
+
+@bot.tree.command(
+    name="clear-completed-channel",
+    description="Stop moving completed threads; revert to in-place [COMPLETED] tagging",
+)
+@app_commands.default_permissions(manage_channels=True)
+async def clear_completed_channel(interaction: discord.Interaction) -> None:
+    set_completed_channel_id(None)
+    await interaction.response.send_message(
+        "Cleared. Completed threads will stay in place and just be tagged `[COMPLETED]`.",
+        ephemeral=True,
+    )
 
 
 # ---------------------------------------------------------------------------
