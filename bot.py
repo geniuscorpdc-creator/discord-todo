@@ -96,20 +96,57 @@ def strip_tags(name: str) -> str:
     return TAG_PATTERN.sub("", name).strip()
 
 
+def _find_tags(name: str) -> list[str]:
+    """Return all recognized tags found in the leading tag block, uppercase."""
+    prefix_match = TAG_PATTERN.match(name)
+    if prefix_match is None:
+        return []
+    return [m.group(1).upper() for m in SINGLE_TAG_PATTERN.finditer(prefix_match.group(0))]
+
+
+def get_difficulty(thread: discord.Thread) -> str | None:
+    """Return the uppercase difficulty tag on the thread, or None if untagged."""
+    for tag in _find_tags(thread.name):
+        if tag in DIFFICULTY_TAGS:
+            return tag
+    return None
+
+
 def get_status(thread: discord.Thread) -> str | None:
-    """Return the uppercase status tag on the thread, or None if untagged."""
-    match = SINGLE_TAG_PATTERN.search(thread.name)
-    if match is None:
-        return None
-    return match.group(1).upper()
+    """Backwards-compat: return the first recognized tag on the thread."""
+    tags = _find_tags(thread.name)
+    return tags[0] if tags else None
 
 
 def is_completed(thread: discord.Thread) -> bool:
-    return get_status(thread) == COMPLETED_TAG
+    return COMPLETED_TAG in _find_tags(thread.name)
 
 
 def apply_status(name: str, status: str) -> str:
-    return f"[{status.upper()}] {strip_tags(name)}".strip()
+    """Apply a status tag while preserving the other tag slot.
+
+    - Setting COMPLETED preserves any existing difficulty tag.
+    - Setting a difficulty preserves the COMPLETED tag if present.
+    """
+    existing = _find_tags(name)
+    base = strip_tags(name)
+    status = status.upper()
+
+    completed = COMPLETED_TAG in existing
+    difficulty: str | None = next((t for t in existing if t in DIFFICULTY_TAGS), None)
+
+    if status == COMPLETED_TAG:
+        completed = True
+    elif status in DIFFICULTY_TAGS:
+        difficulty = status
+
+    parts: list[str] = []
+    if completed:
+        parts.append(f"[{COMPLETED_TAG}]")
+    if difficulty:
+        parts.append(f"[{difficulty}]")
+    parts.append(base)
+    return " ".join(p for p in parts if p).strip()
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +192,7 @@ def filter_by_difficulty(
     if difficulty is None or difficulty.upper() == "ANY":
         return threads
     target = difficulty.upper()
-    return [t for t in threads if get_status(t) == target]
+    return [t for t in threads if get_difficulty(t) == target]
 
 
 # ---------------------------------------------------------------------------
@@ -199,9 +236,9 @@ def build_pick_embed(
         inline=True,
     )
 
-    status = get_status(thread)
-    if status and status != COMPLETED_TAG:
-        embed.add_field(name="Difficulty", value=status.title(), inline=True)
+    difficulty = get_difficulty(thread)
+    if difficulty:
+        embed.add_field(name="Difficulty", value=difficulty.title(), inline=True)
 
     embed.set_footer(text="Your OSRS To-Do")
     return embed
