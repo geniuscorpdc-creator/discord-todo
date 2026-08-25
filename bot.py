@@ -15,6 +15,35 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 LEGACY_TODO_CHANNEL_ID = int(os.getenv("TODO_CHANNEL_ID", "0"))
 GUILD_ID = os.getenv("GUILD_ID")
 
+
+def _parse_id_list(raw: str | None) -> list[int]:
+    if not raw:
+        return []
+    ids: list[int] = []
+    for part in raw.replace(";", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ids.append(int(part))
+        except ValueError:
+            continue
+    return ids
+
+
+def _env_todo_channel_ids() -> list[int]:
+    return _parse_id_list(os.getenv("TODO_CHANNEL_IDS"))
+
+
+def _env_completed_channel_id() -> int | None:
+    raw = os.getenv("COMPLETED_CHANNEL_ID", "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
 STATUS_TAGS = ["EASY", "MEDIUM", "HARD", "ELITE", "COMPLETED"]
 DIFFICULTY_TAGS = ["EASY", "MEDIUM", "HARD", "ELITE"]
 COMPLETED_TAG = "COMPLETED"
@@ -36,7 +65,7 @@ CONFIG_FILE = Path(__file__).parent / "config.json"
 # Channel registry
 # ---------------------------------------------------------------------------
 
-def load_channel_ids() -> list[int]:
+def _load_channel_ids_from_file() -> list[int]:
     if not CHANNELS_FILE.exists():
         return []
     try:
@@ -54,6 +83,18 @@ def load_channel_ids() -> list[int]:
     return result
 
 
+def load_channel_ids() -> list[int]:
+    """Return effective channel IDs.
+
+    If the TODO_CHANNEL_IDS env var is set, it wins (survives Railway redeploys).
+    Otherwise, fall back to channels.json.
+    """
+    env_ids = _env_todo_channel_ids()
+    if env_ids:
+        return env_ids
+    return _load_channel_ids_from_file()
+
+
 def save_channel_ids(ids: list[int]) -> None:
     unique: list[int] = []
     seen: set[int] = set()
@@ -65,7 +106,7 @@ def save_channel_ids(ids: list[int]) -> None:
 
 
 def add_channel_id(channel_id: int) -> bool:
-    ids = load_channel_ids()
+    ids = _load_channel_ids_from_file()
     if channel_id in ids:
         return False
     ids.append(channel_id)
@@ -74,7 +115,7 @@ def add_channel_id(channel_id: int) -> bool:
 
 
 def remove_channel_id(channel_id: int) -> bool:
-    ids = load_channel_ids()
+    ids = _load_channel_ids_from_file()
     if channel_id not in ids:
         return False
     ids = [cid for cid in ids if cid != channel_id]
@@ -82,9 +123,15 @@ def remove_channel_id(channel_id: int) -> bool:
     return True
 
 
+def channels_env_override() -> bool:
+    return bool(_env_todo_channel_ids())
+
+
 def ensure_legacy_migrated() -> None:
     """If a legacy TODO_CHANNEL_ID is set in .env, migrate it into the registry."""
-    if LEGACY_TODO_CHANNEL_ID and LEGACY_TODO_CHANNEL_ID not in load_channel_ids():
+    if channels_env_override():
+        return
+    if LEGACY_TODO_CHANNEL_ID and LEGACY_TODO_CHANNEL_ID not in _load_channel_ids_from_file():
         add_channel_id(LEGACY_TODO_CHANNEL_ID)
 
 
@@ -107,11 +154,23 @@ def save_config(config: dict) -> None:
 
 
 def get_completed_channel_id() -> int | None:
+    """Return the effective completed channel ID.
+
+    COMPLETED_CHANNEL_ID env var wins if set (survives Railway redeploys).
+    Otherwise, fall back to config.json.
+    """
+    env_id = _env_completed_channel_id()
+    if env_id is not None:
+        return env_id
     value = load_config().get("completed_channel_id")
     try:
         return int(value) if value is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def completed_channel_env_override() -> bool:
+    return _env_completed_channel_id() is not None
 
 
 def set_completed_channel_id(channel_id: int | None) -> None:
@@ -725,14 +784,20 @@ async def register_channel(
         return
 
     added = add_channel_id(target.id)
+    note = ""
+    if channels_env_override():
+        note = (
+            "\nNote: `TODO_CHANNEL_IDS` env var is set and takes precedence over "
+            "channels.json. Add this ID to that env var to see it take effect."
+        )
     if added:
         await interaction.response.send_message(
-            f"Registered {target.mention} as a to-do channel.",
+            f"Registered {target.mention} as a to-do channel.{note}",
             ephemeral=True,
         )
     else:
         await interaction.response.send_message(
-            f"{target.mention} is already registered.",
+            f"{target.mention} is already registered.{note}",
             ephemeral=True,
         )
 
@@ -857,12 +922,23 @@ async def list_todo_channels(interaction: discord.Interaction) -> None:
             else f"`{completed_id}` (not accessible)"
         )
 
+    source_notes: list[str] = []
+    if channels_env_override():
+        source_notes.append("Channel list from `TODO_CHANNEL_IDS` env var")
+    else:
+        source_notes.append("Channel list from `channels.json`")
+    if completed_channel_env_override():
+        source_notes.append("Completed channel from `COMPLETED_CHANNEL_ID` env var")
+    elif get_completed_channel_id() is not None:
+        source_notes.append("Completed channel from `config.json`")
+
     embed = discord.Embed(
         title="Registered to-do channels",
         description="\n".join(lines),
         color=0x5865F2,
     )
     embed.add_field(name="Completed archive channel", value=completed_line, inline=False)
+    embed.set_footer(text=" | ".join(source_notes))
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -878,10 +954,16 @@ async def set_completed_channel(
 ) -> None:
     kind = "forum posts" if isinstance(channel, discord.ForumChannel) else "threads"
     set_completed_channel_id(channel.id)
+    note = ""
+    if completed_channel_env_override():
+        note = (
+            "\n**Warning:** `COMPLETED_CHANNEL_ID` env var is set and takes precedence "
+            "over this setting. Update that env var to change the target."
+        )
     await interaction.response.send_message(
         f"Completed to-dos will now be moved to {channel.mention} as {kind}. "
         "Note: the original thread (and all its messages/replies) will be **deleted** on completion; "
-        "only the starter message is preserved.",
+        "only the starter message is preserved." + note,
         ephemeral=True,
     )
 
