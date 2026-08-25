@@ -275,21 +275,10 @@ async def move_thread_to_completed(
         except discord.HTTPException:
             return None, "Completed channel is not accessible. Reset it with /set-completed-channel."
 
-    if not isinstance(target, discord.TextChannel):
-        return None, "Completed channel is not a text channel. Reset it with /set-completed-channel."
+    if not isinstance(target, (discord.TextChannel, discord.ForumChannel)):
+        return None, "Completed channel must be a text or forum channel. Reset it with /set-completed-channel."
 
     starter_content, starter_author = await get_starter_content(thread)
-
-    try:
-        new_thread = await target.create_thread(
-            name=new_name,
-            type=discord.ChannelType.public_thread,
-            reason="Moved from active to-do channel on completion",
-        )
-    except discord.Forbidden:
-        return None, "I don't have permission to create threads in the completed channel."
-    except discord.HTTPException as e:
-        return None, f"Failed to create thread in completed channel: {e}"
 
     header_lines: list[str] = []
     if starter_author is not None:
@@ -306,10 +295,29 @@ async def move_thread_to_completed(
     if len(body) > 2000:
         body = body[:1997] + "..."
 
+    new_thread: discord.Thread
     try:
-        await new_thread.send(body)
-    except discord.HTTPException:
-        pass
+        if isinstance(target, discord.ForumChannel):
+            result = await target.create_thread(
+                name=new_name,
+                content=body or new_name,
+                reason="Moved from active to-do channel on completion",
+            )
+            new_thread = result.thread
+        else:
+            new_thread = await target.create_thread(
+                name=new_name,
+                type=discord.ChannelType.public_thread,
+                reason="Moved from active to-do channel on completion",
+            )
+            try:
+                await new_thread.send(body)
+            except discord.HTTPException:
+                pass
+    except discord.Forbidden:
+        return None, "I don't have permission to create threads/posts in the completed channel."
+    except discord.HTTPException as e:
+        return None, f"Failed to create thread in completed channel: {e}"
 
     try:
         await thread.delete()
@@ -847,17 +855,18 @@ async def list_todo_channels(interaction: discord.Interaction) -> None:
 
 @bot.tree.command(
     name="set-completed-channel",
-    description="Set the channel where completed to-do threads are moved (deletes + recreates)",
+    description="Set the text or forum channel where completed to-do threads are moved",
 )
-@app_commands.describe(channel="The channel to send completed threads to")
+@app_commands.describe(channel="A text or forum channel to send completed threads to")
 @app_commands.default_permissions(manage_channels=True)
 async def set_completed_channel(
     interaction: discord.Interaction,
-    channel: discord.TextChannel,
+    channel: discord.TextChannel | discord.ForumChannel,
 ) -> None:
+    kind = "forum posts" if isinstance(channel, discord.ForumChannel) else "threads"
     set_completed_channel_id(channel.id)
     await interaction.response.send_message(
-        f"Completed threads will now be moved to {channel.mention}. "
+        f"Completed to-dos will now be moved to {channel.mention} as {kind}. "
         "Note: the original thread (and all its messages/replies) will be **deleted** on completion; "
         "only the starter message is preserved.",
         ephemeral=True,
