@@ -787,27 +787,76 @@ def filter_by_difficulty(
     return [t for t in threads if get_difficulty(t) == target]
 
 
-async def get_starter_content(thread: discord.Thread) -> tuple[str, discord.User | discord.Member | None]:
-    """Return (content, author) of the thread's starter message, best-effort.
+_MOVE_HEADER_PREFIXES = (
+    "Originally posted by ",
+    "Promoted from ",
+    "Archived from ",
+    "Moved from ",
+    "Archived thread",
+)
 
-    Falls back to the oldest message in history if starter_message is unavailable.
+
+def _is_move_header_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return True
+    return any(stripped.startswith(prefix) for prefix in _MOVE_HEADER_PREFIXES)
+
+
+def strip_move_headers(content: str) -> str:
+    """Drop stacked move/promote header lines from a copied starter."""
+    lines = (content or "").splitlines()
+    while lines and _is_move_header_line(lines[0]):
+        lines.pop(0)
+    return "\n".join(lines).strip()
+
+
+def _looks_like_quest_requirements(content: str) -> bool:
+    return "**Requirements:**" in (content or "")
+
+
+async def get_starter_content(thread: discord.Thread) -> tuple[str, discord.User | discord.Member | None]:
+    """Return (content, author) of the thread's real starter body.
+
+    Always fetches the forum starter (message id == thread id). Ignores a cached
+    empty ``starter_message``. Skips messages that are only move/promote headers.
     """
-    starter = thread.starter_message
-    if starter is None:
-        try:
-            starter = await thread.parent.fetch_message(thread.id)  # type: ignore[union-attr]
-        except (discord.HTTPException, AttributeError):
-            starter = None
-    if starter is None:
-        try:
-            async for msg in thread.history(limit=1, oldest_first=True):
-                starter = msg
-                break
-        except discord.HTTPException:
-            starter = None
-    if starter is None:
-        return "", None
-    return starter.content or "", starter.author
+    candidates: list[discord.Message] = []
+    try:
+        candidates.append(await thread.fetch_message(thread.id))
+    except discord.HTTPException:
+        pass
+    if thread.starter_message is not None:
+        candidates.append(thread.starter_message)
+    try:
+        parent = thread.parent
+        if parent is not None:
+            candidates.append(await parent.fetch_message(thread.id))
+    except (discord.HTTPException, AttributeError):
+        pass
+    try:
+        async for msg in thread.history(limit=5, oldest_first=True):
+            candidates.append(msg)
+    except discord.HTTPException:
+        pass
+
+    seen_ids: set[int] = set()
+    fallback_content = ""
+    fallback_author: discord.User | discord.Member | None = None
+    for msg in candidates:
+        if msg is None or msg.id in seen_ids:
+            continue
+        seen_ids.add(msg.id)
+        raw = (msg.content or "").strip()
+        if not raw:
+            continue
+        if fallback_author is None:
+            fallback_author = msg.author
+            fallback_content = raw
+        stripped = strip_move_headers(raw)
+        if stripped:
+            return stripped, msg.author
+    return fallback_content, fallback_author
 
 
 async def recreate_thread_in(
@@ -820,8 +869,8 @@ async def recreate_thread_in(
 ) -> tuple[discord.Thread | None, str | None]:
     """Recreate ``thread`` inside ``target`` (Text or Forum) and delete the original.
 
-    Returns (new_thread, error_message). Copies the starter message content and
-    author into a short header + body so the essential context isn't lost.
+    Quest threads get a fresh ``build_requirements_summary`` body (no stacked
+    move headers). Other threads copy the starter after stripping old headers.
     """
     if not isinstance(target, (discord.TextChannel, discord.ForumChannel)):
         return None, "Target channel must be a text or forum channel."
@@ -830,22 +879,27 @@ async def recreate_thread_in(
     if unarchive_err:
         return None, f"Could not unarchive original thread: {unarchive_err}"
 
-    starter_content, starter_author = await get_starter_content(thread)
+    quest_status, quest_payload = resolve_quest(new_name)
+    if quest_status != "match":
+        quest_status, quest_payload = resolve_quest(thread.name)
 
-    header_lines: list[str] = []
-    if starter_author is not None:
-        header_lines.append(f"Originally posted by {starter_author.mention}")
-    if archive_note:
-        header_lines.append(archive_note)
-    elif thread.parent is not None:
-        header_lines.append(f"Moved from #{thread.parent.name}")
-    header = "\n".join(header_lines)
-
-    body_parts = [header]
-    if starter_content:
-        body_parts.append("")
-        body_parts.append(starter_content)
-    body = "\n".join(part for part in body_parts if part)
+    if quest_status == "match":
+        body = build_requirements_summary(quest_payload)  # type: ignore[arg-type]
+    else:
+        starter_content, starter_author = await get_starter_content(thread)
+        header_lines: list[str] = []
+        if starter_author is not None:
+            header_lines.append(f"Originally posted by {starter_author.mention}")
+        if archive_note:
+            header_lines.append(archive_note)
+        elif thread.parent is not None:
+            header_lines.append(f"Moved from #{thread.parent.name}")
+        header = "\n".join(header_lines)
+        body_parts = [header]
+        if starter_content:
+            body_parts.append("")
+            body_parts.append(starter_content)
+        body = "\n".join(part for part in body_parts if part)
 
     if len(body) > 2000:
         body = body[:1997] + "..."
@@ -2270,6 +2324,79 @@ async def migrate_eligible_quests(
         lines.append("Failures: " + "; ".join(failures[:5]))
 
     await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
+@bot.tree.command(
+    name="repair-quest-posts",
+    description="Rewrite eligible-quest forum starters that lost their Requirements body",
+)
+@app_commands.default_permissions(manage_channels=True)
+async def repair_quest_posts(interaction: discord.Interaction) -> None:
+    target, err = await _resolve_eligible_quests_channel()
+    if target is None:
+        await interaction.response.send_message(err or "No eligible-quests forum.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True, thinking=True)
+
+    seen: dict[int, discord.Thread] = {}
+    for t in getattr(target, "threads", []) or []:
+        seen[t.id] = t
+    for t in await _collect_archived_threads(target):
+        seen[t.id] = t
+
+    repaired = 0
+    skipped = 0
+    failed = 0
+    for t in seen.values():
+        status, payload = resolve_quest(t.name)
+        if status != "match":
+            skipped += 1
+            continue
+        quest = payload  # type: ignore[assignment]
+        unarchive_err = await _ensure_unarchived(t)
+        if unarchive_err:
+            failed += 1
+            continue
+        starter = None
+        current = ""
+        try:
+            starter = await t.fetch_message(t.id)
+            current = starter.content or ""
+        except discord.HTTPException:
+            current, _ = await get_starter_content(t)
+        if _looks_like_quest_requirements(current):
+            skipped += 1
+            continue
+        summary = build_requirements_summary(quest)
+        if len(summary) > 2000:
+            summary = summary[:1997] + "..."
+        try:
+            if starter is None:
+                starter = await t.fetch_message(t.id)
+            await starter.edit(content=summary)
+            repaired += 1
+        except discord.HTTPException:
+            new_name = quest["name"]
+            if len(new_name) > 100:
+                new_name = new_name[:100]
+            new_thread, _move_err = await recreate_thread_in(
+                target,
+                t,
+                new_name,
+                reason="Repair quest post body",
+            )
+            if new_thread is not None:
+                repaired += 1
+            else:
+                failed += 1
+        await asyncio.sleep(1.0)
+
+    await interaction.followup.send(
+        f"Repaired **{repaired}** quest post(s) in {target.mention}. "
+        f"Skipped **{skipped}**. Failed: **{failed}**.",
+        ephemeral=True,
+    )
 
 
 # ---------------------------------------------------------------------------
