@@ -39,6 +39,18 @@ Quests get their own workflow because picking a random quest she doesn't meet th
 | `/list-completed-quests` | Show tracked completed quests + total QP. |
 | `/promote-quest [channel]` | Run inside a quest thread. Bot fetches her hiscores, checks skill/QP/quest prerequisites, and moves the thread to the to-do channel if all pass. Replies with a detailed breakdown if any requirement fails. |
 | `/promote-all-eligible [channel]` | Bulk-scan every open quest thread and promote each one she meets the requirements for. One hiscores fetch, then sequential moves. Safe to re-run after leveling up. |
+| `/sync-runelite export:<file> [dry_run]` | Reconcile the bot's state with a RuneLite Quest Helper JSON export (upload the file). Safe operations only \u2014 see below. |
+
+**Runelite sync (safe scope)**
+
+`/sync-runelite` takes the JSON export from the Quest Helper plugin (the object with `quests: [{id, name, state}]`) and does the following in one pass:
+
+1. **Adds** any newly finished quest to `completed_quests`. Never removes entries \u2014 if the export says a tracked quest isn't finished, that's surfaced as info only.
+2. **Deletes stale quest-forum posts** for any quest the export marks as `FINISHED`.
+3. **Deletes within-channel duplicate threads** for the same canonical quest (keeps the newest).
+4. **Deletes cross-channel duplicates** using a priority order: completed archive > any to-do channel > quests forum.
+
+Set `dry_run:true` to preview the plan without applying anything. Names in the export that aren't in `quests_data.json` (miniquests, brand-new quests) are still recorded verbatim in `completed_quests` so quest-prerequisite matching keeps working; they simply won't contribute to computed QP until you add them to the bundled data.
 
 **How quest requirements are checked**
 

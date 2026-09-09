@@ -338,6 +338,20 @@ def _normalize_quest_name(name: str) -> str:
     return n
 
 
+# Explicit aliases for known name drift (RuneLite / wiki naming vs bundled
+# canonical names). Keys are normalized (via _normalize_quest_name); values are
+# canonical quest names in quests_data.json. Add entries here whenever the fuzzy
+# matcher picks the wrong candidate for a common alias.
+_QUEST_ALIASES: dict[str, str] = {
+    "dragon slayer i": "Dragon Slayer",
+    "dragon slayer 1": "Dragon Slayer",
+    "vampyre slayer": "Vampire Slayer",
+    "desert treasure i": "Desert Treasure",
+    "desert treasure 1": "Desert Treasure",
+    "recipe for disaster pirate pete": "Pirate Pete subquest of Recipe for Disaster",
+}
+
+
 def resolve_quest(name: str) -> tuple[str, object]:
     """Fuzzy-match a free-form title to a canonical quest.
 
@@ -361,6 +375,13 @@ def resolve_quest(name: str) -> tuple[str, object]:
 
     if target in by_norm:
         return ("match", by_norm[target])
+
+    # Alias table wins over fuzzy match for known-drift cases.
+    aliased = _QUEST_ALIASES.get(target)
+    if aliased:
+        canon_key = _normalize_quest_name(aliased)
+        if canon_key in by_norm:
+            return ("match", by_norm[canon_key])
 
     candidates = list(by_norm.keys())
     matches = difflib.get_close_matches(target, candidates, n=3, cutoff=0.75)
@@ -1947,6 +1968,514 @@ async def promote_all_eligible(
             lines.append(f"  ...and {len(failures) - 5} more")
 
     await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
+# ---------------------------------------------------------------------------
+# RuneLite Quest Helper sync
+# ---------------------------------------------------------------------------
+
+_RUNELITE_MAX_BYTES = 1_000_000  # ~1 MB
+
+
+def parse_runelite_export(
+    text: str,
+) -> tuple[set[str], set[str], set[str], dict | None]:
+    """Parse a RuneLite Quest Helper export.
+
+    Returns (finished, in_progress, not_started, meta). ``meta`` is the raw
+    top-level dict when the export is the object shape (so we can surface
+    ``exported_at`` etc.), otherwise ``None``.
+
+    Tolerated shapes (in order of preference):
+      1) ``{"quests": [{"name": str, "state": "FINISHED"|"IN_PROGRESS"|"NOT_STARTED"}, ...]}``
+      2) A top-level object mapping name -> state string.
+      3) A JSON array of finished quest names.
+      4) Plain text: one finished quest name per line.
+    """
+    finished: dict[str, str] = {}       # normalized -> display name
+    in_progress: dict[str, str] = {}
+    not_started: dict[str, str] = {}
+    meta: dict | None = None
+
+    def _record(name: str, state: str) -> None:
+        name = (name or "").strip()
+        if not name:
+            return
+        state_up = (state or "").strip().upper()
+        key = _normalize_quest_name(name)
+        if not key:
+            return
+        # FINISHED > IN_PROGRESS > NOT_STARTED - keep the strongest.
+        if state_up == "FINISHED":
+            finished[key] = name
+            in_progress.pop(key, None)
+            not_started.pop(key, None)
+        elif state_up == "IN_PROGRESS":
+            if key in finished:
+                return
+            in_progress[key] = name
+            not_started.pop(key, None)
+        else:
+            if key in finished or key in in_progress:
+                return
+            not_started[key] = name
+
+    stripped = (text or "").strip()
+    if not stripped:
+        raise ValueError("Export is empty.")
+
+    parsed_json: object | None = None
+    try:
+        parsed_json = json.loads(stripped)
+    except json.JSONDecodeError:
+        parsed_json = None
+
+    if isinstance(parsed_json, dict):
+        meta = parsed_json
+        quests = parsed_json.get("quests")
+        if isinstance(quests, list):
+            for q in quests:
+                if isinstance(q, dict):
+                    _record(str(q.get("name", "")), str(q.get("state", "")))
+        else:
+            # Shape 2: name -> state map
+            for k, v in parsed_json.items():
+                if isinstance(k, str) and isinstance(v, str):
+                    _record(k, v)
+    elif isinstance(parsed_json, list):
+        # Shape 3: array of finished names (or {name,state} dicts)
+        for item in parsed_json:
+            if isinstance(item, str):
+                _record(item, "FINISHED")
+            elif isinstance(item, dict):
+                _record(str(item.get("name", "")), str(item.get("state", "FINISHED")))
+    else:
+        # Shape 4: plaintext list of finished names.
+        for line in stripped.splitlines():
+            line = line.strip().lstrip("-*\u2022").strip()
+            if line:
+                _record(line, "FINISHED")
+
+    if not finished and not in_progress and not not_started:
+        raise ValueError("No quests found in export.")
+
+    return set(finished.values()), set(in_progress.values()), set(not_started.values()), meta
+
+
+async def _channel_active_threads(
+    bot_obj: commands.Bot,
+    channel_id: int,
+) -> tuple[discord.abc.GuildChannel | None, list[discord.Thread]]:
+    channel = bot_obj.get_channel(channel_id)
+    if channel is None:
+        try:
+            channel = await bot_obj.fetch_channel(channel_id)
+        except discord.HTTPException:
+            return None, []
+    threads = list(getattr(channel, "threads", []) or [])
+    return channel, threads
+
+
+async def scan_quest_threads(
+    bot_obj: commands.Bot,
+) -> tuple[
+    dict[int, list[discord.Thread]],
+    dict[int, discord.abc.GuildChannel],
+]:
+    """Return (threads_by_channel, channels_by_id) across all relevant channels.
+
+    Includes the quests forum, every registered to-do channel, and the completed
+    archive channel (when configured). Only active threads are considered.
+    """
+    threads_by_channel: dict[int, list[discord.Thread]] = {}
+    channels_by_id: dict[int, discord.abc.GuildChannel] = {}
+
+    async def _add(cid: int | None) -> None:
+        if cid is None or cid in channels_by_id:
+            return
+        ch, threads = await _channel_active_threads(bot_obj, cid)
+        if ch is None:
+            return
+        channels_by_id[cid] = ch
+        threads_by_channel[cid] = threads
+
+    await _add(get_quests_channel_id())
+    for cid in load_channel_ids():
+        await _add(cid)
+    await _add(get_completed_channel_id())
+
+    return threads_by_channel, channels_by_id
+
+
+def _channel_priority(
+    channel_id: int,
+    quests_id: int | None,
+    completed_id: int | None,
+) -> int:
+    """Higher number = keep. Completed archive > todo channels > quests forum."""
+    if completed_id is not None and channel_id == completed_id:
+        return 3
+    if quests_id is not None and channel_id == quests_id:
+        return 1
+    return 2  # any registered to-do channel
+
+
+def plan_runelite_sync(
+    finished_names: set[str],
+    threads_by_channel: dict[int, list[discord.Thread]],
+    quests_channel_id: int | None,
+    completed_channel_id: int | None,
+) -> dict:
+    """Compute the safe action plan.
+
+    Returns a dict with:
+      - stale_forum_deletes: list[discord.Thread]
+      - within_channel_dupe_deletes: list[tuple[int, str, discord.Thread]]  # (channel_id, canonical, thread)
+      - cross_channel_dupe_deletes: list[tuple[int, str, discord.Thread, int]]  # (loser_channel_id, canonical, thread, winner_channel_id)
+      - todo_finished_open: list[tuple[int, str, discord.Thread]]  # info-only
+      - keep_map: dict[str, tuple[int, discord.Thread]]  # canonical -> (channel_id, thread) that survived
+    """
+    stale_forum_deletes: list[discord.Thread] = []
+    within: list[tuple[int, str, discord.Thread]] = []
+    cross: list[tuple[int, str, discord.Thread, int]] = []
+    todo_finished_open: list[tuple[int, str, discord.Thread]] = []
+    keep_map: dict[str, tuple[int, discord.Thread]] = {}
+
+    finished_norms = {_normalize_quest_name(n) for n in finished_names}
+    todo_channel_ids = set(load_channel_ids())
+
+    # Build canonical -> {channel_id: [threads]} of ACTIVE, non-completed threads.
+    by_canonical: dict[str, dict[int, list[discord.Thread]]] = {}
+    for channel_id, threads in threads_by_channel.items():
+        for t in threads:
+            # Skip already-completed threads: they're either in-place tagged or archived.
+            # For dedup within completed channel we still want to see them, so include when in completed channel.
+            in_completed_channel = (
+                completed_channel_id is not None and channel_id == completed_channel_id
+            )
+            if is_completed(t) and not in_completed_channel:
+                # In-place [COMPLETED] threads in the todo channel are effectively done - out of scope.
+                continue
+            status, payload = resolve_quest(t.name)
+            if status != "match":
+                continue
+            canonical = payload["name"]  # type: ignore[index]
+            by_canonical.setdefault(canonical, {}).setdefault(channel_id, []).append(t)
+
+    for canonical, per_channel in by_canonical.items():
+        # Step 1: within-channel dedup. Keep the newest (largest thread id) per channel.
+        collapsed: dict[int, discord.Thread] = {}
+        for cid, threads in per_channel.items():
+            if len(threads) <= 1:
+                collapsed[cid] = threads[0]
+                continue
+            threads_sorted = sorted(threads, key=lambda x: x.id, reverse=True)
+            collapsed[cid] = threads_sorted[0]
+            for loser in threads_sorted[1:]:
+                within.append((cid, canonical, loser))
+
+        if not collapsed:
+            continue
+
+        # Step 2: cross-channel dedup by priority.
+        winner_cid = max(
+            collapsed.keys(),
+            key=lambda c: (
+                _channel_priority(c, quests_channel_id, completed_channel_id),
+                collapsed[c].id,
+            ),
+        )
+        winner_thread = collapsed[winner_cid]
+        keep_map[canonical] = (winner_cid, winner_thread)
+
+        for cid, thread in collapsed.items():
+            if cid == winner_cid:
+                continue
+            cross.append((cid, canonical, thread, winner_cid))
+
+        # Step 3: for FINISHED quests, delete any stale quest-forum copy that survived
+        # dedup (if the forum copy was somehow the winner because no other channels had it).
+        if _normalize_quest_name(canonical) in finished_norms:
+            if quests_channel_id is not None and winner_cid == quests_channel_id:
+                stale_forum_deletes.append(winner_thread)
+                keep_map.pop(canonical, None)
+
+            # Informational: any surviving todo-channel thread for a finished quest.
+            if winner_cid in todo_channel_ids:
+                todo_finished_open.append((winner_cid, canonical, winner_thread))
+
+    return {
+        "stale_forum_deletes": stale_forum_deletes,
+        "within_channel_dupe_deletes": within,
+        "cross_channel_dupe_deletes": cross,
+        "todo_finished_open": todo_finished_open,
+        "keep_map": keep_map,
+    }
+
+
+async def _safe_delete_thread(thread: discord.Thread) -> str | None:
+    """Delete a thread, honoring 429 retry_after once. Returns error string on failure."""
+    try:
+        await thread.delete()
+        return None
+    except discord.HTTPException as e:
+        retry_after = getattr(e, "retry_after", None)
+        if getattr(e, "status", None) == 429 and retry_after:
+            await asyncio.sleep(float(retry_after) + 0.5)
+            try:
+                await thread.delete()
+                return None
+            except discord.HTTPException as e2:
+                return str(e2)
+        return str(e)
+
+
+@bot.tree.command(
+    name="sync-runelite",
+    description="Reconcile a RuneLite Quest Helper export with the bot's state and threads",
+)
+@app_commands.describe(
+    export="RuneLite Quest Helper JSON export (attach the file)",
+    dry_run="If true, report the planned changes without applying anything",
+)
+@app_commands.default_permissions(manage_channels=True)
+async def sync_runelite(
+    interaction: discord.Interaction,
+    export: discord.Attachment,
+    dry_run: bool = False,
+) -> None:
+    if export.size and export.size > _RUNELITE_MAX_BYTES:
+        await interaction.response.send_message(
+            f"Attachment is too large ({export.size} bytes; limit is {_RUNELITE_MAX_BYTES}).",
+            ephemeral=True,
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True, thinking=True)
+
+    try:
+        raw = await export.read()
+    except discord.HTTPException as e:
+        await interaction.followup.send(f"Failed to read attachment: {e}", ephemeral=True)
+        return
+
+    try:
+        text = raw.decode("utf-8", errors="replace")
+    except Exception as e:  # noqa: BLE001
+        await interaction.followup.send(f"Failed to decode attachment: {e}", ephemeral=True)
+        return
+
+    try:
+        finished, in_progress, not_started, meta = parse_runelite_export(text)
+    except ValueError as e:
+        await interaction.followup.send(f"Could not parse export: {e}", ephemeral=True)
+        return
+
+    # Canonicalize FINISHED names: prefer canonical when known, else keep verbatim.
+    canonical_finished: list[str] = []
+    unmatched_export: list[str] = []
+    seen_norms: set[str] = set()
+    for name in sorted(finished):
+        status, payload = resolve_quest(name)
+        if status == "match":
+            canon = payload["name"]  # type: ignore[index]
+        else:
+            canon = name
+            unmatched_export.append(name)
+        key = _normalize_quest_name(canon)
+        if key and key not in seen_norms:
+            seen_norms.add(key)
+            canonical_finished.append(canon)
+
+    # Compute additions (never removals under safe scope).
+    existing = get_completed_quests()
+    existing_norms = {_normalize_quest_name(x) for x in existing}
+    to_add = [n for n in canonical_finished if _normalize_quest_name(n) not in existing_norms]
+
+    # Info-only: entries in completed_quests that the export doesn't list as finished.
+    finished_norms = {_normalize_quest_name(n) for n in canonical_finished}
+    stale_completed_entries = [n for n in existing if _normalize_quest_name(n) not in finished_norms]
+
+    # Apply the additions unless dry-run.
+    if not dry_run and to_add:
+        combined = list(existing)
+        for n in to_add:
+            combined.append(n)
+        save_completed_quests(combined)
+
+    # Scan and plan thread cleanups.
+    quests_id = get_quests_channel_id()
+    completed_id = get_completed_channel_id()
+    threads_by_channel, channels_by_id = await scan_quest_threads(bot)
+    plan = plan_runelite_sync(
+        finished_names=set(canonical_finished),
+        threads_by_channel=threads_by_channel,
+        quests_channel_id=quests_id,
+        completed_channel_id=completed_id,
+    )
+
+    stale_forum = plan["stale_forum_deletes"]
+    within = plan["within_channel_dupe_deletes"]
+    cross = plan["cross_channel_dupe_deletes"]
+    todo_finished_open = plan["todo_finished_open"]
+
+    total_deletes = len(stale_forum) + len(within) + len(cross)
+
+    deleted_stale = 0
+    deleted_within = 0
+    deleted_cross = 0
+    delete_failures: list[str] = []
+    long_run = total_deletes > 40
+    processed = 0
+    last_progress_edit = 0.0
+
+    async def _tick_progress() -> None:
+        nonlocal last_progress_edit
+        if not long_run:
+            return
+        now = time.monotonic()
+        if (now - last_progress_edit) <= 3.0:
+            return
+        try:
+            await interaction.edit_original_response(
+                content=f"Sync in progress: {processed}/{total_deletes} deletions..."
+            )
+            last_progress_edit = now
+        except discord.HTTPException:
+            pass
+
+    if not dry_run:
+        for t in stale_forum:
+            err = await _safe_delete_thread(t)
+            if err:
+                delete_failures.append(f"forum {t.name}: {err}")
+            else:
+                deleted_stale += 1
+            processed += 1
+            await _tick_progress()
+            await asyncio.sleep(0.5)
+
+        for cid, canonical, t in within:
+            err = await _safe_delete_thread(t)
+            if err:
+                delete_failures.append(f"within {canonical}: {err}")
+            else:
+                deleted_within += 1
+            processed += 1
+            await _tick_progress()
+            await asyncio.sleep(0.5)
+
+        for cid, canonical, t, winner_cid in cross:
+            err = await _safe_delete_thread(t)
+            if err:
+                delete_failures.append(f"cross {canonical}: {err}")
+            else:
+                deleted_cross += 1
+            processed += 1
+            await _tick_progress()
+            await asyncio.sleep(0.5)
+
+    # Build the report.
+    def _ch_ref(cid: int) -> str:
+        ch = channels_by_id.get(cid)
+        return ch.mention if ch is not None else f"`{cid}`"
+
+    verb_add = "Would add" if dry_run else "Added"
+    verb_del = "Would delete" if dry_run else "Deleted"
+
+    header = ["**RuneLite sync**"]
+    if meta and isinstance(meta.get("exported_at"), str):
+        header.append(f"Export timestamp: `{meta['exported_at']}`")
+    header.append(
+        f"Finished: **{len(finished)}** "
+        f"({len(finished) - len(unmatched_export)} matched, {len(unmatched_export)} unmatched)  \u2022  "
+        f"In progress: **{len(in_progress)}**  \u2022  Not started: **{len(not_started)}**"
+    )
+    if dry_run:
+        header.append("_Dry-run mode: no changes applied._")
+
+    lines = list(header)
+    lines.append("")
+    lines.append("**completed_quests**")
+    if to_add:
+        preview = ", ".join(to_add[:8])
+        more = f" (+{len(to_add) - 8} more)" if len(to_add) > 8 else ""
+        lines.append(
+            f"  {verb_add} **{len(to_add)}** quest(s): {preview}{more}"
+        )
+    else:
+        lines.append(f"  {verb_add} 0 quest(s) (already up to date).")
+
+    lines.append("")
+    lines.append("**Thread cleanups**")
+    if dry_run:
+        lines.append(
+            f"  {verb_del} **{len(stale_forum)}** stale quest-forum post(s) for finished quests."
+        )
+        lines.append(f"  {verb_del} **{len(within)}** within-channel duplicate(s).")
+        lines.append(f"  {verb_del} **{len(cross)}** cross-channel duplicate(s).")
+    else:
+        lines.append(
+            f"  Deleted **{deleted_stale}/{len(stale_forum)}** stale quest-forum post(s)."
+        )
+        lines.append(
+            f"  Deleted **{deleted_within}/{len(within)}** within-channel duplicate(s)."
+        )
+        lines.append(
+            f"  Deleted **{deleted_cross}/{len(cross)}** cross-channel duplicate(s)."
+        )
+        if delete_failures:
+            preview = "; ".join(delete_failures[:3])
+            more = f" (+{len(delete_failures) - 3} more)" if len(delete_failures) > 3 else ""
+            lines.append(f"  Failures: {preview}{more}")
+
+    # Informational
+    info_lines: list[str] = []
+    if in_progress:
+        preview = ", ".join(sorted(in_progress)[:5])
+        more = f" (+{len(in_progress) - 5} more)" if len(in_progress) > 5 else ""
+        info_lines.append(f"In progress (no action): {preview}{more}")
+    if todo_finished_open:
+        preview = ", ".join(c for _, c, _ in todo_finished_open[:5])
+        more = (
+            f" (+{len(todo_finished_open) - 5} more)"
+            if len(todo_finished_open) > 5
+            else ""
+        )
+        info_lines.append(
+            f"Finished quests still open in a to-do channel (no action under safe scope): {preview}{more}"
+        )
+    if unmatched_export:
+        preview = ", ".join(unmatched_export[:5])
+        more = (
+            f" (+{len(unmatched_export) - 5} more)"
+            if len(unmatched_export) > 5
+            else ""
+        )
+        info_lines.append(
+            f"Export names not in `quests_data.json` (recorded verbatim in completed_quests): {preview}{more}"
+        )
+    if stale_completed_entries:
+        preview = ", ".join(stale_completed_entries[:5])
+        more = (
+            f" (+{len(stale_completed_entries) - 5} more)"
+            if len(stale_completed_entries) > 5
+            else ""
+        )
+        info_lines.append(
+            f"Currently in completed_quests but not finished per export (no action under safe scope): {preview}{more}"
+        )
+
+    if info_lines:
+        lines.append("")
+        lines.append("**Informational**")
+        for line in info_lines:
+            lines.append(f"  \u2022 {line}")
+
+    body = "\n".join(lines)
+    if len(body) > 1900:
+        body = body[:1897] + "..."
+    await interaction.followup.send(body, ephemeral=True)
 
 
 # ---------------------------------------------------------------------------
