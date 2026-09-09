@@ -25,6 +25,31 @@ A small Discord bot that randomly picks an open to-do thread across one or more 
 
 Registered channel IDs are stored in `channels.json` alongside `bot.py`. The completed-archive channel is stored in `config.json`. Channel management commands require the **Manage Channels** permission by default.
 
+### Quests
+
+Quests get their own workflow because picking a random quest she doesn't meet the requirements for is a bad experience on an ironman. Quest threads live in a dedicated **forum** channel and only get promoted to a regular to-do channel after the bot verifies her account meets every requirement.
+
+| Command | Description |
+|---|---|
+| `/set-rsn username:<str>` | Store her OSRS RSN. Used for all hiscores lookups. |
+| `/set-quests-channel channel:<#forum>` | Register the forum channel that holds one thread per quest. |
+| `/clear-quests-channel` | Unset the quests source channel. |
+| `/populate-quests-channel` | One-shot: create a forum post for every OSRS quest in `quests_data.json`. Skips ones already present or already in the completed list. Paced to respect Discord rate limits (~1 post/sec). |
+| `/import-quests names:<str> [replace]` | Bootstrap the completed-quests list from a comma or newline separated list of quest names. Fuzzy-matches to canonical names and reports anything that didn't match. |
+| `/list-completed-quests` | Show tracked completed quests + total QP. |
+| `/promote-quest [channel]` | Run inside a quest thread. Bot fetches her hiscores, checks skill/QP/quest prerequisites, and moves the thread to the to-do channel if all pass. Replies with a detailed breakdown if any requirement fails. |
+| `/promote-all-eligible [channel]` | Bulk-scan every open quest thread and promote each one she meets the requirements for. One hiscores fetch, then sequential moves. Safe to re-run after leveling up. |
+
+**How quest requirements are checked**
+
+- **Skills:** compared against the OSRS ironman hiscores (falls back to the main hiscores if unranked as an ironman).
+- **Quest prerequisites:** compared against the `completed_quests` list in `config.json`.
+- **Quest points:** computed as the sum of `qp_reward` across all completed quests known to the bot.
+
+The completed-quests list is bootstrapped once via `/import-quests`. After that, every time a quest thread is marked `[COMPLETED]` (via `/complete` or `/set-status`), the bot auto-appends the canonical quest name — so the list stays accurate without ongoing manual work.
+
+Quest data (names, skill requirements, QP, prerequisites) is bundled in `quests_data.json`. It covers ~147 quests. If a quest is missing or has stale requirements, edit `quests_data.json` directly.
+
 ### Completed archive channel (optional)
 
 If you set a completed channel with `/set-completed-channel`, marking a thread `[COMPLETED]` (via `/complete` or `/set-status Completed`) will:
@@ -132,6 +157,8 @@ In your Railway service, open **Variables** and add:
 | `TODO_CHANNEL_IDS` | **(recommended on Railway)** Comma-separated list of to-do channel IDs. When set, this overrides `channels.json` and survives redeploys. Example: `123456789,987654321` |
 | `COMPLETED_CHANNEL_ID` | **(recommended on Railway)** Single channel ID (text or forum) where completed threads are moved. When set, overrides `config.json`. |
 | `TODO_CHANNEL_ID` | *(legacy)* Single channel; auto-migrated into `channels.json` on startup. Prefer `TODO_CHANNEL_IDS`. |
+| `QUESTS_CHANNEL_ID` | Forum channel ID that holds quest threads. Overrides `config.json`. |
+| `OSRS_USERNAME` | Her OSRS RSN, used for hiscores lookups. Overrides `config.json`. |
 
 **Important on Railway:** `channels.json` and `config.json` are stored on the container filesystem and are wiped on every redeploy. Use `TODO_CHANNEL_IDS` and `COMPLETED_CHANNEL_ID` env vars for persistence, or mount a Railway Volume at the repo path.
 

@@ -1,0 +1,2018 @@
+[
+  {
+    "name": "A Soul's Bane",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/A_Soul%27s_Bane",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "A Tail of Two Cats",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/A_Tail_of_Two_Cats",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Icthlarin's Little Helper"
+    ]
+  },
+  {
+    "name": "A Taste of Hope",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/A_Taste_of_Hope",
+    "skills": {
+      "Crafting": 48,
+      "Agility": 45,
+      "Attack": 40,
+      "Herblore": 40,
+      "Slayer": 38
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Darkness of Hallowvale"
+    ]
+  },
+  {
+    "name": "Animal Magnetism",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Animal_Magnetism",
+    "skills": {
+      "Slayer": 18,
+      "Crafting": 19,
+      "Ranged": 30,
+      "Woodcutting": 35,
+      "Prayer": 31
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "The Restless Ghost",
+      "Ernest the Chicken",
+      "Priest in Peril"
+    ]
+  },
+  {
+    "name": "Another Slice of H.A.M.",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Another_Slice_of_H.A.M.",
+    "skills": {
+      "Attack": 15,
+      "Prayer": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Death to the Dorgeshuun",
+      "The Giant Dwarf",
+      "The Dig Site",
+      "Druidic Ritual"
+    ]
+  },
+  {
+    "name": "Between a Rock...",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Between_a_Rock...",
+    "skills": {
+      "Defence": 30,
+      "Mining": 40,
+      "Smithing": 50
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Dwarf Cannon",
+      "Fishing Contest"
+    ]
+  },
+  {
+    "name": "Big Chompy Bird Hunting",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Big_Chompy_Bird_Hunting",
+    "skills": {
+      "Fletching": 5,
+      "Cooking": 30,
+      "Ranged": 30
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Biohazard",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Biohazard",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Black Knights' Fortress",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Black_Knights%27_Fortress",
+    "skills": {},
+    "qp_required": 12,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Bone Voyage",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Bone_Voyage",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "The Dig Site"
+    ]
+  },
+  {
+    "name": "Cabin Fever",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Cabin_Fever",
+    "skills": {
+      "Agility": 42,
+      "Crafting": 45,
+      "Smithing": 50,
+      "Ranged": 40
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Pirate's Treasure",
+      "Rum Deal",
+      "Priest in Peril"
+    ]
+  },
+  {
+    "name": "Client of Kourend",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Client_of_Kourend",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Clock Tower",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Clock_Tower",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Cold War",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Cold_War",
+    "skills": {
+      "Hunter": 10,
+      "Agility": 30,
+      "Crafting": 30,
+      "Construction": 34,
+      "Thieving": 15
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Contact!",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Contact!",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Prince Ali Rescue",
+      "Icthlarin's Little Helper"
+    ]
+  },
+  {
+    "name": "Cook's Assistant",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Cook%27s_Assistant",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Creature of Fenkenstrain",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Creature_of_Fenkenstrain",
+    "skills": {
+      "Crafting": 20,
+      "Thieving": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Priest in Peril",
+      "The Restless Ghost"
+    ]
+  },
+  {
+    "name": "Darkness of Hallowvale",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Darkness_of_Hallowvale",
+    "skills": {
+      "Construction": 5,
+      "Mining": 20,
+      "Thieving": 22,
+      "Agility": 26,
+      "Crafting": 32,
+      "Magic": 33,
+      "Strength": 40
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "In Aid of the Myreque"
+    ]
+  },
+  {
+    "name": "Death Plateau",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Death_Plateau",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Death to the Dorgeshuun",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Death_to_the_Dorgeshuun",
+    "skills": {
+      "Agility": 23,
+      "Thieving": 23
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "The Lost Tribe"
+    ]
+  },
+  {
+    "name": "Demon Slayer",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Demon_Slayer",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Desert Treasure",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Desert_Treasure",
+    "skills": {
+      "Thieving": 53,
+      "Firemaking": 50,
+      "Slayer": 10,
+      "Magic": 50
+    },
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": [
+      "The Dig Site",
+      "Temple of Ikov",
+      "The Tourist Trap",
+      "Troll Stronghold",
+      "Priest in Peril",
+      "Waterfall Quest"
+    ]
+  },
+  {
+    "name": "Devious Minds",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Devious_Minds",
+    "skills": {
+      "Smithing": 65,
+      "Runecraft": 50,
+      "Fletching": 50
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Wanted!",
+      "Troll Stronghold",
+      "Doric's Quest",
+      "Enter the Abyss"
+    ]
+  },
+  {
+    "name": "Doric's Quest",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Doric%27s_Quest",
+    "skills": {
+      "Mining": 15
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Dragon Slayer",
+    "members": false,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Dragon_Slayer",
+    "skills": {
+      "Crafting": 8
+    },
+    "qp_required": 32,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Dragon Slayer II",
+    "members": true,
+    "difficulty": "Grandmaster",
+    "url": "https://oldschool.runescape.wiki/w/Dragon_Slayer_II",
+    "skills": {},
+    "qp_required": 200,
+    "qp_reward": 5,
+    "quest_prerequisites": [
+      "Legends' Quest",
+      "Dream Mentor",
+      "A Tail of Two Cats",
+      "Animal Magnetism",
+      "Ghosts Ahoy",
+      "Bone Voyage",
+      "Client of Kourend"
+    ]
+  },
+  {
+    "name": "Dream Mentor",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Dream_Mentor",
+    "skills": {
+      "Combat": 85
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Lunar Diplomacy",
+      "Eadgar's Ruse"
+    ]
+  },
+  {
+    "name": "Druidic Ritual",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Druidic_Ritual",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 4,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Dwarf Cannon",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Dwarf_Cannon",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Eadgar's Ruse",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Eadgar%27s_Ruse",
+    "skills": {
+      "Herblore": 31,
+      "Agility": 44
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Druidic Ritual",
+      "Troll Stronghold"
+    ]
+  },
+  {
+    "name": "Eagles' Peak",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Eagles%27_Peak",
+    "skills": {
+      "Hunter": 27
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Elemental Workshop I",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Elemental_Workshop_I",
+    "skills": {
+      "Mining": 20,
+      "Smithing": 20,
+      "Crafting": 20
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Elemental Workshop II",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Elemental_Workshop_II",
+    "skills": {
+      "Magic": 20,
+      "Smithing": 30
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Enakhra's Lament",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Enakhra%27s_Lament",
+    "skills": {
+      "Crafting": 50,
+      "Firemaking": 45,
+      "Prayer": 43,
+      "Magic": 39,
+      "Mining": 45
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Enlightened Journey",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Enlightened_Journey",
+    "skills": {
+      "Firemaking": 20,
+      "Farming": 30,
+      "Crafting": 36
+    },
+    "qp_required": 20,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Enter the Abyss",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Enter_the_Abyss",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 0,
+    "quest_prerequisites": [
+      "Rune Mysteries"
+    ]
+  },
+  {
+    "name": "Ernest the Chicken",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Ernest_the_Chicken",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 4,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Fairytale I - Growing Pains",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Fairytale_I_-_Growing_Pains",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Lost City",
+      "Nature Spirit"
+    ]
+  },
+  {
+    "name": "Fairytale II - Cure a Queen",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Fairytale_II_-_Cure_a_Queen",
+    "skills": {
+      "Thieving": 40,
+      "Farming": 49,
+      "Herblore": 57
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Fairytale I - Growing Pains"
+    ]
+  },
+  {
+    "name": "Family Crest",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Family_Crest",
+    "skills": {
+      "Mining": 40,
+      "Smithing": 40,
+      "Magic": 59,
+      "Crafting": 40
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Fight Arena",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Fight_Arena",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Fishing Contest",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Fishing_Contest",
+    "skills": {
+      "Fishing": 10
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Forgettable Tale...",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Forgettable_Tale...",
+    "skills": {
+      "Cooking": 22,
+      "Farming": 17
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "The Giant Dwarf",
+      "Fishing Contest"
+    ]
+  },
+  {
+    "name": "Garden of Tranquillity",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Garden_of_Tranquillity",
+    "skills": {
+      "Farming": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Creature of Fenkenstrain"
+    ]
+  },
+  {
+    "name": "Gertrude's Cat",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Gertrude%27s_Cat",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Ghosts Ahoy",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Ghosts_Ahoy",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Goblin Diplomacy",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Goblin_Diplomacy",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 5,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Grim Tales",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Grim_Tales",
+    "skills": {
+      "Farming": 45,
+      "Herblore": 52,
+      "Thieving": 58,
+      "Agility": 59,
+      "Woodcutting": 71
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Haunted Mine",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Haunted_Mine",
+    "skills": {
+      "Agility": 15,
+      "Crafting": 35
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Hazeel Cult",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Hazeel_Cult",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Heroes' Quest",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Heroes%27_Quest",
+    "skills": {},
+    "qp_required": 55,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Shield of Arrav",
+      "Lost City",
+      "Merlin's Crystal",
+      "Dragon Slayer",
+      "Druidic Ritual"
+    ]
+  },
+  {
+    "name": "Holy Grail",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Holy_Grail",
+    "skills": {
+      "Attack": 20
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Horror from the Deep",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Horror_from_the_Deep",
+    "skills": {
+      "Agility": 35
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Icthlarin's Little Helper",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Icthlarin%27s_Little_Helper",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Imp Catcher",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Imp_Catcher",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "In Aid of the Myreque",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/In_Aid_of_the_Myreque",
+    "skills": {
+      "Crafting": 25,
+      "Mining": 15,
+      "Magic": 7
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "In Search of the Myreque"
+    ]
+  },
+  {
+    "name": "In Search of the Myreque",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/In_Search_of_the_Myreque",
+    "skills": {
+      "Agility": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Nature Spirit"
+    ]
+  },
+  {
+    "name": "Jungle Potion",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Jungle_Potion",
+    "skills": {
+      "Herblore": 3
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "King's Ransom",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/King%27s_Ransom",
+    "skills": {
+      "Magic": 45,
+      "Defence": 65
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Black Knights' Fortress",
+      "Holy Grail",
+      "Murder Mystery",
+      "One Small Favour"
+    ]
+  },
+  {
+    "name": "Legends' Quest",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Legends%27_Quest",
+    "skills": {
+      "Agility": 50,
+      "Crafting": 50,
+      "Herblore": 45,
+      "Magic": 56,
+      "Mining": 52,
+      "Prayer": 42,
+      "Smithing": 50,
+      "Strength": 50,
+      "Thieving": 50,
+      "Woodcutting": 50
+    },
+    "qp_required": 107,
+    "qp_reward": 4,
+    "quest_prerequisites": [
+      "Family Crest",
+      "Heroes' Quest",
+      "Shilo Village",
+      "Underground Pass",
+      "Waterfall Quest"
+    ]
+  },
+  {
+    "name": "Lost City",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Lost_City",
+    "skills": {
+      "Crafting": 31,
+      "Woodcutting": 36
+    },
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Lunar Diplomacy",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Lunar_Diplomacy",
+    "skills": {
+      "Crafting": 61,
+      "Defence": 40,
+      "Firemaking": 49,
+      "Magic": 65,
+      "Mining": 60,
+      "Woodcutting": 55
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "The Fremennik Trials",
+      "Lost City",
+      "Rune Mysteries",
+      "Shilo Village"
+    ]
+  },
+  {
+    "name": "Making Friends with My Arm",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Making_Friends_with_My_Arm",
+    "skills": {
+      "Firemaking": 66,
+      "Mining": 72,
+      "Construction": 35,
+      "Agility": 68
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "My Arm's Big Adventure",
+      "Swan Song",
+      "Cold War",
+      "Romeo & Juliet"
+    ]
+  },
+  {
+    "name": "Making History",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Making_History",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": [
+      "Priest in Peril",
+      "The Restless Ghost"
+    ]
+  },
+  {
+    "name": "Merlin's Crystal",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Merlin%27s_Crystal",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 6,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Misthalin Mystery",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Misthalin_Mystery",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Monk's Friend",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Monk%27s_Friend",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Monkey Madness I",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Monkey_Madness_I",
+    "skills": {
+      "Prayer": 43
+    },
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": [
+      "The Grand Tree",
+      "Tree Gnome Village"
+    ]
+  },
+  {
+    "name": "Monkey Madness II",
+    "members": true,
+    "difficulty": "Grandmaster",
+    "url": "https://oldschool.runescape.wiki/w/Monkey_Madness_II",
+    "skills": {
+      "Slayer": 69,
+      "Crafting": 70,
+      "Hunter": 60,
+      "Agility": 55,
+      "Thieving": 55,
+      "Firemaking": 60
+    },
+    "qp_required": 0,
+    "qp_reward": 4,
+    "quest_prerequisites": [
+      "Enlightened Journey",
+      "The Eyes of Glouphrie",
+      "Recipe for Disaster",
+      "Troll Stronghold",
+      "Watchtower"
+    ]
+  },
+  {
+    "name": "Mountain Daughter",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Mountain_Daughter",
+    "skills": {
+      "Agility": 20
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Mourning's End Part I",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Mourning%27s_Ends_Part_I",
+    "skills": {
+      "Ranged": 60,
+      "Thieving": 50
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Roving Elves",
+      "Big Chompy Bird Hunting",
+      "Sheep Herder"
+    ]
+  },
+  {
+    "name": "Mourning's End Part II",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Mourning%27s_Ends_Part_II",
+    "skills": {
+      "Prayer": 43,
+      "Agility": 60
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Murder Mystery",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Murder_Mystery",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "My Arm's Big Adventure",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/My_Arm%27s_Big_Adventure",
+    "skills": {
+      "Woodcutting": 10,
+      "Farming": 29
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Eadgar's Ruse",
+      "The Feud",
+      "Jungle Potion"
+    ]
+  },
+  {
+    "name": "Nature Spirit",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Nature_Spirit",
+    "skills": {
+      "Crafting": 18
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Priest in Peril",
+      "The Restless Ghost"
+    ]
+  },
+  {
+    "name": "Observatory Quest",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Observatory_Quest",
+    "skills": {
+      "Crafting": 10
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Olaf's Quest",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Olaf%27s_Quest",
+    "skills": {
+      "Firemaking": 40,
+      "Woodcutting": 50
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "One Small Favour",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/One_Small_Favour",
+    "skills": {
+      "Agility": 36,
+      "Crafting": 25,
+      "Herblore": 18,
+      "Smithing": 30
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Rune Mysteries",
+      "Shilo Village"
+    ]
+  },
+  {
+    "name": "Pirate Pete subquest of Recipe for Disaster",
+    "members": true,
+    "difficulty": "Special",
+    "url": "https://oldschool.runescape.wiki/w/Recipe_for_Disaster/Freeing_Pirate_Pete",
+    "skills": {
+      "Cooking": 31
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Pirate's Treasure",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Pirate%27s_Treasure",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Plague City",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Plague_City",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Priest in Peril",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Priest_in_Peril",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Prince Ali Rescue",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Prince_Ali_Rescue",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Rag and Bone Man",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Rag_and_Bone_Man",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Rag and Bone Man II",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Rag_and_Bone_Man_II",
+    "skills": {
+      "Slayer": 40,
+      "Defence": 20
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Ratcatchers",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Ratcatchers",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Icthlarin's Little Helper"
+    ]
+  },
+  {
+    "name": "Recipe for Disaster",
+    "members": true,
+    "difficulty": "Special",
+    "url": "https://oldschool.runescape.wiki/w/Recipe_for_Disaster",
+    "skills": {
+      "Cooking": 70,
+      "Agility": 48,
+      "Mining": 50,
+      "Fishing": 53,
+      "Thieving": 53,
+      "Herblore": 25,
+      "Magic": 59,
+      "Smithing": 40,
+      "Firemaking": 50,
+      "Ranged": 40,
+      "Crafting": 40,
+      "Fletching": 10,
+      "Slayer": 10,
+      "Woodcutting": 36
+    },
+    "qp_required": 175,
+    "qp_reward": 10,
+    "quest_prerequisites": [
+      "Cook's Assistant",
+      "Fishing Contest",
+      "Goblin Diplomacy",
+      "Big Chompy Bird Hunting",
+      "Murder Mystery",
+      "Nature Spirit",
+      "Witch's House",
+      "Gertrude's Cat",
+      "Shadow of the Storm",
+      "Legends' Quest",
+      "Monkey Madness I",
+      "Desert Treasure",
+      "Horror from the Deep"
+    ]
+  },
+  {
+    "name": "Recruitment Drive",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Recruitment_Drive",
+    "skills": {},
+    "qp_required": 12,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Regicide",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Regicide",
+    "skills": {
+      "Agility": 56,
+      "Crafting": 10
+    },
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": [
+      "Underground Pass"
+    ]
+  },
+  {
+    "name": "Romeo & Juliet",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Romeo_%26_Juliet",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 5,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Roving Elves",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Roving_Elves",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Regicide",
+      "Waterfall Quest"
+    ]
+  },
+  {
+    "name": "Royal Trouble",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Royal_Trouble",
+    "skills": {
+      "Agility": 40,
+      "Slayer": 40
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Rum Deal",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Rum_Deal",
+    "skills": {
+      "Crafting": 42,
+      "Fishing": 50,
+      "Farming": 40,
+      "Prayer": 47,
+      "Slayer": 42
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Zogre Flesh Eaters",
+      "Priest in Peril"
+    ]
+  },
+  {
+    "name": "Rune Mysteries",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Rune_Mysteries",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Scorpion Catcher",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Scorpion_Catcher",
+    "skills": {
+      "Prayer": 31
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Sea Slug",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Sea_Slug",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Shades of Mort'ton",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Shades_of_Mort%27ton",
+    "skills": {
+      "Crafting": 20,
+      "Herblore": 15,
+      "Firemaking": 5
+    },
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Shadow of the Storm",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Shadow_of_the_Storm",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "The Golem",
+      "Demon Slayer"
+    ]
+  },
+  {
+    "name": "Sheep Herder",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Sheep_Herder",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 4,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Sheep Shearer",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Sheep_Shearer",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Shield of Arrav",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Shield_of_Arrav",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Shilo Village",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Shilo_Village",
+    "skills": {
+      "Crafting": 20,
+      "Agility": 32,
+      "Smithing": 4
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Sins of the Father",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Sins_of_the_Father",
+    "skills": {
+      "Woodcutting": 62,
+      "Fletching": 60,
+      "Crafting": 56,
+      "Agility": 52,
+      "Attack": 50,
+      "Slayer": 50,
+      "Magic": 49
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Vampyre Slayer",
+      "A Taste of Hope",
+      "Darkness of Hallowvale",
+      "In Aid of the Myreque",
+      "In Search of the Myreque",
+      "Nature Spirit",
+      "Priest in Peril",
+      "The Restless Ghost"
+    ]
+  },
+  {
+    "name": "Song of the Elves",
+    "members": true,
+    "difficulty": "Grandmaster",
+    "url": "https://oldschool.runescape.wiki/w/Song_of_the_Elves",
+    "skills": {
+      "Agility": 70,
+      "Construction": 70,
+      "Farming": 70,
+      "Herblore": 70,
+      "Hunter": 70,
+      "Mining": 70,
+      "Smithing": 70,
+      "Woodcutting": 70
+    },
+    "qp_required": 0,
+    "qp_reward": 4,
+    "quest_prerequisites": [
+      "Mourning's End Part II",
+      "Making History"
+    ]
+  },
+  {
+    "name": "Spirits of the Elid",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Spirits_of_the_Elid",
+    "skills": {
+      "Magic": 33,
+      "Ranged": 37,
+      "Mining": 37,
+      "Thieving": 37
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Swan Song",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Swan_Song",
+    "skills": {
+      "Magic": 66,
+      "Cooking": 62,
+      "Fishing": 62,
+      "Smithing": 45,
+      "Firemaking": 42,
+      "Crafting": 40
+    },
+    "qp_required": 100,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "One Small Favour",
+      "Garden of Tranquillity"
+    ]
+  },
+  {
+    "name": "Tai Bwo Wannai Trio",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Tai_Bwo_Wannai_Trio",
+    "skills": {
+      "Agility": 15,
+      "Cooking": 30,
+      "Fishing": 5
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Tale of the Righteous",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Tale_of_the_Righteous",
+    "skills": {
+      "Strength": 16,
+      "Mining": 10
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Client of Kourend"
+    ]
+  },
+  {
+    "name": "Tears of Guthix",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/Tears_of_Guthix_(quest)",
+    "skills": {
+      "Firemaking": 49,
+      "Crafting": 20,
+      "Mining": 20
+    },
+    "qp_required": 43,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Temple of Ikov",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Temple_of_Ikov",
+    "skills": {
+      "Thieving": 42,
+      "Ranged": 40
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Ascent of Arceuus",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/The_Ascent_of_Arceuus",
+    "skills": {
+      "Hunter": 12
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Client of Kourend"
+    ]
+  },
+  {
+    "name": "The Corsair Curse",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/The_Corsair_Curse",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Depths of Despair",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/The_Depths_of_Despair",
+    "skills": {
+      "Agility": 18
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Client of Kourend"
+    ]
+  },
+  {
+    "name": "The Dig Site",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Dig_Site",
+    "skills": {
+      "Agility": 10,
+      "Herblore": 10,
+      "Thieving": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Eyes of Glouphrie",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Eyes_of_Glouphrie",
+    "skills": {
+      "Construction": 5,
+      "Magic": 46
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Feud",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Feud",
+    "skills": {
+      "Thieving": 30
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Forsaken Tower",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/The_Forsaken_Tower",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Fremennik Exiles",
+    "members": true,
+    "difficulty": "Master",
+    "url": "https://oldschool.runescape.wiki/w/The_Fremennik_Exiles",
+    "skills": {
+      "Crafting": 65,
+      "Slayer": 60,
+      "Smithing": 60,
+      "Fishing": 60,
+      "Runecraft": 55
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "The Fremennik Isles",
+      "Lunar Diplomacy",
+      "Mountain Daughter",
+      "Heroes' Quest"
+    ]
+  },
+  {
+    "name": "The Fremennik Isles",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/The_Fremennik_Isles",
+    "skills": {
+      "Construction": 20,
+      "Agility": 40
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Fremennik Trials",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Fremennik_Trials",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Giant Dwarf",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Giant_Dwarf",
+    "skills": {
+      "Crafting": 12,
+      "Firemaking": 16,
+      "Magic": 33,
+      "Thieving": 14,
+      "Mining": 20,
+      "Smithing": 20
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Golem",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Golem",
+    "skills": {
+      "Crafting": 20,
+      "Thieving": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Grand Tree",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/The_Grand_Tree",
+    "skills": {
+      "Agility": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 5,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Great Brain Robbery",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/The_Great_Brain_Robbery",
+    "skills": {
+      "Crafting": 16,
+      "Construction": 30,
+      "Prayer": 50
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Creature of Fenkenstrain",
+      "Cabin Fever",
+      "Pirate Pete subquest of Recipe for Disaster"
+    ]
+  },
+  {
+    "name": "The Hand in the Sand",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Hand_in_the_Sand",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Knight's Sword",
+    "members": false,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Knight%27s_Sword",
+    "skills": {
+      "Mining": 10
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Lost Tribe",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Lost_Tribe",
+    "skills": {
+      "Agility": 13,
+      "Thieving": 13,
+      "Mining": 17
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Queen of Thieves",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/The_Queen_of_Thieves",
+    "skills": {
+      "Thieving": 20
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Client of Kourend"
+    ]
+  },
+  {
+    "name": "The Restless Ghost",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/The_Restless_Ghost",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Slug Menace",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Slug_Menace",
+    "skills": {
+      "Crafting": 30,
+      "Runecraft": 30,
+      "Slayer": 30,
+      "Thieving": 30
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "The Tourist Trap",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/The_Tourist_Trap",
+    "skills": {
+      "Fletching": 10,
+      "Smithing": 20
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Throne of Miscellania",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Throne_of_Miscellania",
+    "skills": {
+      "Woodcutting": 45,
+      "Farming": 10,
+      "Mining": 30,
+      "Fishing": 35
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Tower of Life",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Tower_of_Life",
+    "skills": {
+      "Construction": 10
+    },
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Tree Gnome Village",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Tree_Gnome_Village",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Tribal Totem",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Tribal_Totem",
+    "skills": {
+      "Thieving": 21
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Troll Romance",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Troll_Romance",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 2,
+    "quest_prerequisites": [
+      "Troll Stronghold"
+    ]
+  },
+  {
+    "name": "Troll Stronghold",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Troll_Stronghold",
+    "skills": {
+      "Agility": 15
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Underground Pass",
+    "members": true,
+    "difficulty": "Experienced",
+    "url": "https://oldschool.runescape.wiki/w/Underground_Pass",
+    "skills": {
+      "Ranged": 25
+    },
+    "qp_required": 0,
+    "qp_reward": 5,
+    "quest_prerequisites": [
+      "Biohazard"
+    ]
+  },
+  {
+    "name": "Vampire Slayer",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Vampire_Slayer",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 3,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Wanted!",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Wanted!",
+    "skills": {},
+    "qp_required": 32,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Recruitment Drive",
+      "Rune Mysteries",
+      "The Lost Tribe",
+      "Priest in Peril"
+    ]
+  },
+  {
+    "name": "Watchtower",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Watchtower",
+    "skills": {
+      "Magic": 15,
+      "Thieving": 15,
+      "Agility": 25,
+      "Herblore": 14,
+      "Mining": 40
+    },
+    "qp_required": 0,
+    "qp_reward": 4,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Waterfall Quest",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Waterfall_Quest",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "What Lies Below",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/What_Lies_Below",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Witch's House",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Witch%27s_House",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 4,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Witch's Potion",
+    "members": false,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/Witch%27s_Potion",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "X Marks the Spot",
+    "members": true,
+    "difficulty": "Novice",
+    "url": "https://oldschool.runescape.wiki/w/X_Marks_the_Spot",
+    "skills": {},
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": []
+  },
+  {
+    "name": "Zogre Flesh Eaters",
+    "members": true,
+    "difficulty": "Intermediate",
+    "url": "https://oldschool.runescape.wiki/w/Zogre_Flesh_Eaters",
+    "skills": {
+      "Smithing": 4,
+      "Herblore": 8,
+      "Ranged": 30,
+      "Fletching": 30,
+      "Strength": 10,
+      "Prayer": 43
+    },
+    "qp_required": 0,
+    "qp_reward": 1,
+    "quest_prerequisites": [
+      "Big Chompy Bird Hunting",
+      "Jungle Potion"
+    ]
+  }
+]
