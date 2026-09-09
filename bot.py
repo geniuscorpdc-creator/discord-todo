@@ -2062,22 +2062,22 @@ def parse_runelite_export(
     return set(finished.values()), set(in_progress.values()), set(not_started.values()), meta
 
 
-async def _channel_active_threads(
+async def _resolve_channel(
     bot_obj: commands.Bot,
     channel_id: int,
-) -> tuple[discord.abc.GuildChannel | None, list[discord.Thread]]:
+) -> discord.abc.GuildChannel | None:
     channel = bot_obj.get_channel(channel_id)
     if channel is None:
         try:
             channel = await bot_obj.fetch_channel(channel_id)
         except discord.HTTPException:
-            return None, []
-    threads = list(getattr(channel, "threads", []) or [])
-    return channel, threads
+            return None
+    return channel
 
 
 async def scan_quest_threads(
     bot_obj: commands.Bot,
+    guild: discord.Guild | None,
 ) -> tuple[
     dict[int, list[discord.Thread]],
     dict[int, discord.abc.GuildChannel],
@@ -2086,23 +2086,48 @@ async def scan_quest_threads(
 
     Includes the quests forum, every registered to-do channel, and the completed
     archive channel (when configured). Only active threads are considered.
-    """
-    threads_by_channel: dict[int, list[discord.Thread]] = {}
-    channels_by_id: dict[int, discord.abc.GuildChannel] = {}
 
-    async def _add(cid: int | None) -> None:
+    Uses ``guild.active_threads()`` (an API-backed fetch) as the primary source
+    so we don't miss threads that pre-date the bot's current session or were
+    missed by the cache. Falls back to each channel's cached ``.threads`` list
+    if the API fetch fails.
+    """
+    channels_by_id: dict[int, discord.abc.GuildChannel] = {}
+    threads_by_channel: dict[int, list[discord.Thread]] = {}
+
+    async def _add_channel(cid: int | None) -> None:
         if cid is None or cid in channels_by_id:
             return
-        ch, threads = await _channel_active_threads(bot_obj, cid)
+        ch = await _resolve_channel(bot_obj, cid)
         if ch is None:
             return
         channels_by_id[cid] = ch
-        threads_by_channel[cid] = threads
+        threads_by_channel[cid] = []
 
-    await _add(get_quests_channel_id())
+    await _add_channel(get_quests_channel_id())
     for cid in load_channel_ids():
-        await _add(cid)
-    await _add(get_completed_channel_id())
+        await _add_channel(cid)
+    await _add_channel(get_completed_channel_id())
+
+    interesting_ids = set(channels_by_id.keys())
+    if not interesting_ids:
+        return threads_by_channel, channels_by_id
+
+    api_threads: list[discord.Thread] | None = None
+    if guild is not None:
+        try:
+            api_threads = await guild.active_threads()
+        except discord.HTTPException:
+            api_threads = None
+
+    if api_threads is not None:
+        for t in api_threads:
+            if t.parent_id in interesting_ids:
+                threads_by_channel[t.parent_id].append(t)
+    else:
+        # Fallback: use each channel's cached .threads list.
+        for cid, channel in channels_by_id.items():
+            threads_by_channel[cid] = list(getattr(channel, "threads", []) or [])
 
     return threads_by_channel, channels_by_id
 
@@ -2129,13 +2154,13 @@ def plan_runelite_sync(
     """Compute the safe action plan.
 
     Returns a dict with:
-      - stale_forum_deletes: list[discord.Thread]
+      - stale_forum_finished: list[tuple[str, discord.Thread]]  # (canonical, thread) to archive/delete
       - within_channel_dupe_deletes: list[tuple[int, str, discord.Thread]]  # (channel_id, canonical, thread)
       - cross_channel_dupe_deletes: list[tuple[int, str, discord.Thread, int]]  # (loser_channel_id, canonical, thread, winner_channel_id)
       - todo_finished_open: list[tuple[int, str, discord.Thread]]  # info-only
       - keep_map: dict[str, tuple[int, discord.Thread]]  # canonical -> (channel_id, thread) that survived
     """
-    stale_forum_deletes: list[discord.Thread] = []
+    stale_forum_finished: list[tuple[str, discord.Thread]] = []
     within: list[tuple[int, str, discord.Thread]] = []
     cross: list[tuple[int, str, discord.Thread, int]] = []
     todo_finished_open: list[tuple[int, str, discord.Thread]] = []
@@ -2193,11 +2218,11 @@ def plan_runelite_sync(
                 continue
             cross.append((cid, canonical, thread, winner_cid))
 
-        # Step 3: for FINISHED quests, delete any stale quest-forum copy that survived
-        # dedup (if the forum copy was somehow the winner because no other channels had it).
+        # Step 3: for FINISHED quests, the surviving thread in the quests forum is
+        # stale and should be archived (or deleted as a fallback).
         if _normalize_quest_name(canonical) in finished_norms:
             if quests_channel_id is not None and winner_cid == quests_channel_id:
-                stale_forum_deletes.append(winner_thread)
+                stale_forum_finished.append((canonical, winner_thread))
                 keep_map.pop(canonical, None)
 
             # Informational: any surviving todo-channel thread for a finished quest.
@@ -2205,7 +2230,7 @@ def plan_runelite_sync(
                 todo_finished_open.append((winner_cid, canonical, winner_thread))
 
     return {
-        "stale_forum_deletes": stale_forum_deletes,
+        "stale_forum_finished": stale_forum_finished,
         "within_channel_dupe_deletes": within,
         "cross_channel_dupe_deletes": cross,
         "todo_finished_open": todo_finished_open,
@@ -2306,7 +2331,7 @@ async def sync_runelite(
     # Scan and plan thread cleanups.
     quests_id = get_quests_channel_id()
     completed_id = get_completed_channel_id()
-    threads_by_channel, channels_by_id = await scan_quest_threads(bot)
+    threads_by_channel, channels_by_id = await scan_quest_threads(bot, interaction.guild)
     plan = plan_runelite_sync(
         finished_names=set(canonical_finished),
         threads_by_channel=threads_by_channel,
@@ -2314,18 +2339,19 @@ async def sync_runelite(
         completed_channel_id=completed_id,
     )
 
-    stale_forum = plan["stale_forum_deletes"]
+    stale_forum = plan["stale_forum_finished"]
     within = plan["within_channel_dupe_deletes"]
     cross = plan["cross_channel_dupe_deletes"]
     todo_finished_open = plan["todo_finished_open"]
 
-    total_deletes = len(stale_forum) + len(within) + len(cross)
+    total_ops = len(stale_forum) + len(within) + len(cross)
 
-    deleted_stale = 0
+    archived_stale = 0
+    deleted_stale_fallback = 0
     deleted_within = 0
     deleted_cross = 0
-    delete_failures: list[str] = []
-    long_run = total_deletes > 40
+    op_failures: list[str] = []
+    long_run = total_ops > 40
     processed = 0
     last_progress_edit = 0.0
 
@@ -2338,19 +2364,40 @@ async def sync_runelite(
             return
         try:
             await interaction.edit_original_response(
-                content=f"Sync in progress: {processed}/{total_deletes} deletions..."
+                content=f"Sync in progress: {processed}/{total_ops} operation(s)..."
             )
             last_progress_edit = now
         except discord.HTTPException:
             pass
 
     if not dry_run:
-        for t in stale_forum:
-            err = await _safe_delete_thread(t)
-            if err:
-                delete_failures.append(f"forum {t.name}: {err}")
-            else:
-                deleted_stale += 1
+        for canonical, t in stale_forum:
+            handled = False
+            if completed_id is not None:
+                new_name = apply_status(t.name, COMPLETED_TAG)
+                if len(new_name) > 100:
+                    new_name = new_name[:100]
+                new_thread, err = await move_thread_to_completed(bot, t, new_name)
+                if new_thread is not None:
+                    archived_stale += 1
+                    handled = True
+                    # Belt-and-suspenders: guarantee this quest is in completed_quests.
+                    record_quest_completion(canonical)
+                    if err:
+                        op_failures.append(f"{canonical}: {err}")
+                elif err:
+                    op_failures.append(f"{canonical}: {err}")
+                    # Move failed hard; don't fall back to delete because we'd lose
+                    # the record. Surface the failure instead.
+                    handled = True
+            if not handled:
+                # No archive configured (or move helper declined): fall back to delete.
+                err = await _safe_delete_thread(t)
+                if err:
+                    op_failures.append(f"forum {canonical}: {err}")
+                else:
+                    deleted_stale_fallback += 1
+                    record_quest_completion(canonical)
             processed += 1
             await _tick_progress()
             await asyncio.sleep(0.5)
@@ -2358,7 +2405,7 @@ async def sync_runelite(
         for cid, canonical, t in within:
             err = await _safe_delete_thread(t)
             if err:
-                delete_failures.append(f"within {canonical}: {err}")
+                op_failures.append(f"within {canonical}: {err}")
             else:
                 deleted_within += 1
             processed += 1
@@ -2368,7 +2415,7 @@ async def sync_runelite(
         for cid, canonical, t, winner_cid in cross:
             err = await _safe_delete_thread(t)
             if err:
-                delete_failures.append(f"cross {canonical}: {err}")
+                op_failures.append(f"cross {canonical}: {err}")
             else:
                 deleted_cross += 1
             processed += 1
@@ -2382,6 +2429,8 @@ async def sync_runelite(
 
     verb_add = "Would add" if dry_run else "Added"
     verb_del = "Would delete" if dry_run else "Deleted"
+    verb_move = "Would move" if dry_run else "Moved"
+    completed_ref = _ch_ref(completed_id) if completed_id is not None else None
 
     header = ["**RuneLite sync**"]
     if meta and isinstance(meta.get("exported_at"), str):
@@ -2408,25 +2457,38 @@ async def sync_runelite(
 
     lines.append("")
     lines.append("**Thread cleanups**")
+    stale_action_target = f" to {completed_ref}" if completed_ref else " (delete, no archive configured)"
+    stale_action_verb = verb_move if completed_id is not None else verb_del
     if dry_run:
         lines.append(
-            f"  {verb_del} **{len(stale_forum)}** stale quest-forum post(s) for finished quests."
+            f"  {stale_action_verb} **{len(stale_forum)}** stale quest-forum post(s) for finished quests{stale_action_target}."
         )
         lines.append(f"  {verb_del} **{len(within)}** within-channel duplicate(s).")
         lines.append(f"  {verb_del} **{len(cross)}** cross-channel duplicate(s).")
     else:
-        lines.append(
-            f"  Deleted **{deleted_stale}/{len(stale_forum)}** stale quest-forum post(s)."
-        )
+        if completed_id is not None:
+            lines.append(
+                f"  Moved **{archived_stale}/{len(stale_forum)}** stale quest-forum post(s) "
+                f"to {completed_ref} as `[COMPLETED] ...`."
+            )
+            if deleted_stale_fallback:
+                lines.append(
+                    f"  Deleted (fallback) **{deleted_stale_fallback}** stale forum post(s) where move failed."
+                )
+        else:
+            lines.append(
+                f"  Deleted **{deleted_stale_fallback}/{len(stale_forum)}** stale quest-forum post(s) "
+                "(no completed channel configured)."
+            )
         lines.append(
             f"  Deleted **{deleted_within}/{len(within)}** within-channel duplicate(s)."
         )
         lines.append(
             f"  Deleted **{deleted_cross}/{len(cross)}** cross-channel duplicate(s)."
         )
-        if delete_failures:
-            preview = "; ".join(delete_failures[:3])
-            more = f" (+{len(delete_failures) - 3} more)" if len(delete_failures) > 3 else ""
+        if op_failures:
+            preview = "; ".join(op_failures[:3])
+            more = f" (+{len(op_failures) - 3} more)" if len(op_failures) > 3 else ""
             lines.append(f"  Failures: {preview}{more}")
 
     # Informational

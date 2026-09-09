@@ -46,7 +46,7 @@ Quests get their own workflow because picking a random quest she doesn't meet th
 `/sync-runelite` takes the JSON export from the Quest Helper plugin (the object with `quests: [{id, name, state}]`) and does the following in one pass:
 
 1. **Adds** any newly finished quest to `completed_quests`. Never removes entries \u2014 if the export says a tracked quest isn't finished, that's surfaced as info only.
-2. **Deletes stale quest-forum posts** for any quest the export marks as `FINISHED`.
+2. **Archives stale quest-forum posts.** For any quest the export marks as `FINISHED` that still has an open post in the quests forum, the bot moves it to the configured **completed archive channel** as `[COMPLETED] <quest name>` (same behavior as `/complete`). If no archive channel is configured (`/set-completed-channel`), the post is deleted as a fallback.
 3. **Deletes within-channel duplicate threads** for the same canonical quest (keeps the newest).
 4. **Deletes cross-channel duplicates** using a priority order: completed archive > any to-do channel > quests forum.
 
