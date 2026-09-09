@@ -267,6 +267,41 @@ def set_quests_channel_id(channel_id: int | None) -> None:
     save_config(config)
 
 
+def _env_eligible_quests_channel_id() -> int | None:
+    raw = os.getenv("ELIGIBLE_QUESTS_CHANNEL_ID", "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def get_eligible_quests_channel_id() -> int | None:
+    """Forum of quests she can currently do. Env var wins (Railway)."""
+    env_id = _env_eligible_quests_channel_id()
+    if env_id is not None:
+        return env_id
+    value = load_config().get("eligible_quests_channel_id")
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def eligible_quests_channel_env_override() -> bool:
+    return _env_eligible_quests_channel_id() is not None
+
+
+def set_eligible_quests_channel_id(channel_id: int | None) -> None:
+    config = load_config()
+    if channel_id is None:
+        config.pop("eligible_quests_channel_id", None)
+    else:
+        config["eligible_quests_channel_id"] = int(channel_id)
+    save_config(config)
+
+
 def get_osrs_username() -> str | None:
     env = os.getenv("OSRS_USERNAME", "").strip()
     if env:
@@ -696,8 +731,19 @@ def apply_status(name: str, status: str) -> str:
 # ---------------------------------------------------------------------------
 
 async def get_channels(bot: commands.Bot) -> list[discord.abc.GuildChannel]:
+    """Registered regular to-do channels, excluding quests / eligible / completed forums."""
+    skip: set[int] = set()
+    for cid in (
+        get_eligible_quests_channel_id(),
+        get_quests_channel_id(),
+        get_completed_channel_id(),
+    ):
+        if cid is not None:
+            skip.add(cid)
     channels: list[discord.abc.GuildChannel] = []
     for cid in load_channel_ids():
+        if cid in skip:
+            continue
         channel = bot.get_channel(cid)
         if channel is None:
             try:
@@ -711,15 +757,19 @@ async def get_channels(bot: commands.Bot) -> list[discord.abc.GuildChannel]:
 
 async def get_open_threads(
     channels: list[discord.abc.GuildChannel],
+    *,
+    include_archived: bool = False,
 ) -> tuple[list[discord.Thread], int]:
-    """Return open (non-completed) threads and total active thread count across all channels."""
+    """Return open (non-completed) threads and total thread count across channels."""
     seen: dict[int, discord.Thread] = {}
     for channel in channels:
         threads = getattr(channel, "threads", None)
-        if not threads:
-            continue
-        for thread in threads:
-            seen[thread.id] = thread
+        if threads:
+            for thread in threads:
+                seen[thread.id] = thread
+        if include_archived:
+            for thread in await _collect_archived_threads(channel):
+                seen[thread.id] = thread
 
     all_active = list(seen.values())
     open_threads = [t for t in all_active if not is_completed(t)]
@@ -949,10 +999,18 @@ def build_no_channels_embed() -> discord.Embed:
 # ---------------------------------------------------------------------------
 
 class PickAgainView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, difficulty: str | None):
+    def __init__(
+        self,
+        bot: commands.Bot,
+        difficulty: str | None,
+        source: str = "regular",
+    ):
         super().__init__(timeout=300)
         self.bot = bot
         self.difficulty = difficulty
+        self.source = source
+        if source != "regular":
+            self.remove_item(self.change_difficulty)
 
     @discord.ui.button(
         label="Pick Again",
@@ -964,7 +1022,9 @@ class PickAgainView(discord.ui.View):
         interaction: discord.Interaction,
         button: discord.ui.Button,
     ) -> None:
-        await do_pick(interaction, self.bot, self.difficulty, edit=True)
+        await do_pick(
+            interaction, self.bot, self.difficulty, edit=True, source=self.source
+        )
 
     @discord.ui.button(
         label="Change Difficulty",
@@ -1002,7 +1062,7 @@ class DifficultySelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction) -> None:
         choice = self.values[0]
-        await do_pick(interaction, self.bot, choice, edit=True)
+        await do_pick(interaction, self.bot, choice, edit=True, source="regular")
 
 
 class DifficultySelectView(discord.ui.View):
@@ -1011,37 +1071,87 @@ class DifficultySelectView(discord.ui.View):
         self.add_item(DifficultySelect(bot))
 
 
+def build_no_eligible_quests_embed() -> discord.Embed:
+    return discord.Embed(
+        title="No eligible quests",
+        description=(
+            "There are no open quests in the eligible-quests forum. "
+            "Run `/promote-all-eligible` after setting `/set-eligible-quests-channel`."
+        ),
+        color=0xED4245,
+    )
+
+
+def build_no_eligible_channel_embed() -> discord.Embed:
+    return discord.Embed(
+        title="Eligible-quests forum not set",
+        description=(
+            "Set it with `/set-eligible-quests-channel` and `ELIGIBLE_QUESTS_CHANNEL_ID` "
+            "on Railway so it survives redeploys."
+        ),
+        color=0xED4245,
+    )
+
+
 async def do_pick(
     interaction: discord.Interaction,
     bot: commands.Bot,
     difficulty: str | None,
     edit: bool,
+    source: str = "regular",
 ) -> None:
-    channels = await get_channels(bot)
-    if not channels:
-        embed = build_no_channels_embed()
-        if edit:
-            await interaction.response.edit_message(content=None, embed=embed, view=None)
-        else:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        return
-
-    open_threads, total = await get_open_threads(channels)
-    filtered = filter_by_difficulty(open_threads, difficulty)
+    if source == "quests":
+        cid = get_eligible_quests_channel_id()
+        if cid is None:
+            embed = build_no_eligible_channel_embed()
+            if edit:
+                await interaction.response.edit_message(content=None, embed=embed, view=None)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        channel = bot.get_channel(cid)
+        if channel is None:
+            try:
+                channel = await bot.fetch_channel(cid)
+            except discord.HTTPException:
+                channel = None
+        if not isinstance(channel, discord.abc.GuildChannel):
+            embed = build_no_eligible_channel_embed()
+            if edit:
+                await interaction.response.edit_message(content=None, embed=embed, view=None)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        open_threads, total = await get_open_threads([channel], include_archived=True)
+        filtered = open_threads
+        empty_embed = build_no_eligible_quests_embed()
+    else:
+        channels = await get_channels(bot)
+        if not channels:
+            embed = build_no_channels_embed()
+            if edit:
+                await interaction.response.edit_message(content=None, embed=embed, view=None)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        open_threads, total = await get_open_threads(channels)
+        filtered = filter_by_difficulty(open_threads, difficulty)
+        empty_embed = build_all_done_embed(difficulty)
 
     if not filtered:
-        embed = build_all_done_embed(difficulty)
-        view = PickAgainView(bot, difficulty)
+        view = PickAgainView(bot, difficulty, source=source)
         view.pick_again.disabled = True
         if edit:
-            await interaction.response.edit_message(content=None, embed=embed, view=view)
+            await interaction.response.edit_message(content=None, embed=empty_embed, view=view)
         else:
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            await interaction.response.send_message(
+                embed=empty_embed, view=view, ephemeral=True
+            )
         return
 
     thread = random.choice(filtered)
     embed = build_pick_embed(thread, len(filtered), total, difficulty)
-    view = PickAgainView(bot, difficulty)
+    view = PickAgainView(bot, difficulty, source=source)
     if edit:
         await interaction.response.edit_message(content=None, embed=embed, view=view)
     else:
@@ -1068,6 +1178,43 @@ class TodoBot(commands.Bot):
 
 bot = TodoBot()
 
+pick_todo_group = app_commands.Group(
+    name="pick-todo",
+    description="Pick a random to-do from the regular list or eligible quests",
+)
+
+
+@pick_todo_group.command(
+    name="regular",
+    description="Pick a random regular to-do (not quests)",
+)
+async def pick_todo_regular(interaction: discord.Interaction) -> None:
+    channels = await get_channels(bot)
+    if not channels:
+        await interaction.response.send_message(
+            embed=build_no_channels_embed(),
+            ephemeral=True,
+        )
+        return
+
+    view = DifficultySelectView(bot)
+    await interaction.response.send_message(
+        content="Pick a difficulty:",
+        view=view,
+        ephemeral=True,
+    )
+
+
+@pick_todo_group.command(
+    name="quests",
+    description="Pick a random eligible quest",
+)
+async def pick_todo_quests(interaction: discord.Interaction) -> None:
+    await do_pick(interaction, bot, difficulty=None, edit=False, source="quests")
+
+
+bot.tree.add_command(pick_todo_group)
+
 
 @bot.event
 async def on_ready() -> None:
@@ -1084,27 +1231,6 @@ async def on_ready() -> None:
 # ---------------------------------------------------------------------------
 # Slash commands
 # ---------------------------------------------------------------------------
-
-@bot.tree.command(
-    name="pick-todo",
-    description="Pick a random open OSRS to-do by difficulty",
-)
-async def pick_todo(interaction: discord.Interaction) -> None:
-    channels = await get_channels(bot)
-    if not channels:
-        await interaction.response.send_message(
-            embed=build_no_channels_embed(),
-            ephemeral=True,
-        )
-        return
-
-    view = DifficultySelectView(bot)
-    await interaction.response.send_message(
-        content="Pick a difficulty:",
-        view=view,
-        ephemeral=True,
-    )
-
 
 STATUS_CHOICES = [
     app_commands.Choice(name="Easy", value="EASY"),
@@ -1433,6 +1559,21 @@ async def list_todo_channels(interaction: discord.Interaction) -> None:
     rsn = get_osrs_username()
     rsn_line = f"`{rsn}`" if rsn else "*(not set)*"
 
+    eligible_id = get_eligible_quests_channel_id()
+    eligible_line = "*(not set)*"
+    if eligible_id is not None:
+        ech = bot.get_channel(eligible_id)
+        if ech is None:
+            try:
+                ech = await bot.fetch_channel(eligible_id)
+            except discord.HTTPException:
+                ech = None
+        eligible_line = (
+            f"{ech.mention} (`{eligible_id}`)"
+            if ech is not None
+            else f"`{eligible_id}` (not accessible)"
+        )
+
     source_notes: list[str] = []
     if channels_env_override():
         source_notes.append("Channel list from `TODO_CHANNEL_IDS` env var")
@@ -1444,6 +1585,8 @@ async def list_todo_channels(interaction: discord.Interaction) -> None:
         source_notes.append("Completed channel from `config.json`")
     if quests_channel_env_override():
         source_notes.append("Quests channel from `QUESTS_CHANNEL_ID` env var")
+    if eligible_quests_channel_env_override():
+        source_notes.append("Eligible quests from `ELIGIBLE_QUESTS_CHANNEL_ID` env var")
     if osrs_username_env_override():
         source_notes.append("RSN from `OSRS_USERNAME` env var")
 
@@ -1454,6 +1597,7 @@ async def list_todo_channels(interaction: discord.Interaction) -> None:
     )
     embed.add_field(name="Completed archive channel", value=completed_line, inline=False)
     embed.add_field(name="Quests source channel", value=quests_line, inline=False)
+    embed.add_field(name="Eligible-quests forum", value=eligible_line, inline=False)
     embed.add_field(name="OSRS RSN", value=rsn_line, inline=False)
     embed.set_footer(text=" | ".join(source_notes))
     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -1545,7 +1689,7 @@ async def set_quests_channel(
     await interaction.response.send_message(
         f"Quest source channel set to {channel.mention}. "
         "Use `/populate-quests-channel` to auto-create a post per quest, and "
-        "`/promote-quest` from inside a quest thread to move it to the to-do list "
+        "`/promote-quest` to move it to the **eligible-quests** forum "
         f"if requirements are met.{note}",
         ephemeral=True,
     )
@@ -1560,6 +1704,44 @@ async def clear_quests_channel(interaction: discord.Interaction) -> None:
     set_quests_channel_id(None)
     await interaction.response.send_message(
         "Cleared quests source channel.", ephemeral=True
+    )
+
+
+@bot.tree.command(
+    name="set-eligible-quests-channel",
+    description="Set the forum for quests she can currently do (/pick-todo quests)",
+)
+@app_commands.describe(channel="Forum channel for eligible (promoted) quests")
+@app_commands.default_permissions(manage_channels=True)
+async def set_eligible_quests_channel(
+    interaction: discord.Interaction,
+    channel: discord.ForumChannel,
+) -> None:
+    set_eligible_quests_channel_id(channel.id)
+    note = ""
+    if eligible_quests_channel_env_override():
+        note = (
+            "\n**Warning:** `ELIGIBLE_QUESTS_CHANNEL_ID` env var is set and takes "
+            "precedence over this setting."
+        )
+    await interaction.response.send_message(
+        f"Eligible-quests forum set to {channel.mention}. "
+        "Do **not** add this ID to `TODO_CHANNEL_IDS`. "
+        "Then set `ELIGIBLE_QUESTS_CHANNEL_ID` on Railway, and run "
+        f"`/migrate-eligible-quests` if quests are still in the regular to-do forum.{note}",
+        ephemeral=True,
+    )
+
+
+@bot.tree.command(
+    name="clear-eligible-quests-channel",
+    description="Unset the eligible-quests forum",
+)
+@app_commands.default_permissions(manage_channels=True)
+async def clear_eligible_quests_channel(interaction: discord.Interaction) -> None:
+    set_eligible_quests_channel_id(None)
+    await interaction.response.send_message(
+        "Cleared eligible-quests forum.", ephemeral=True
     )
 
 
@@ -1633,6 +1815,29 @@ async def list_completed_quests(interaction: discord.Interaction) -> None:
     await interaction.response.send_message(header + body, ephemeral=True)
 
 
+async def _resolve_eligible_quests_channel(
+    override: TodoChannel | None = None,
+) -> tuple[TodoChannel | None, str | None]:
+    if override is not None:
+        return override, None
+    cid = get_eligible_quests_channel_id()
+    if cid is None:
+        return None, (
+            "No eligible-quests forum is set. Use `/set-eligible-quests-channel` "
+            "and set `ELIGIBLE_QUESTS_CHANNEL_ID` on Railway."
+        )
+    ch = bot.get_channel(cid)
+    if ch is None:
+        try:
+            ch = await bot.fetch_channel(cid)
+        except discord.HTTPException:
+            ch = None
+    target = as_todo_channel(ch) if ch is not None else None
+    if target is None:
+        return None, "Eligible-quests channel is not an accessible text or forum channel."
+    return target, None
+
+
 async def _resolve_target_todo_channel(
     override: TodoChannel | None,
 ) -> tuple[TodoChannel | None, str | None]:
@@ -1672,10 +1877,10 @@ async def _promote_thread(
 
 @bot.tree.command(
     name="promote-quest",
-    description="Move this quest thread to the to-do list if her account meets the requirements",
+    description="Move this quest thread to the eligible-quests forum if requirements are met",
 )
 @app_commands.describe(
-    channel="Optional to-do channel to promote into (defaults to first registered)",
+    channel="Optional destination (defaults to the eligible-quests forum)",
 )
 async def promote_quest(
     interaction: discord.Interaction,
@@ -1710,7 +1915,7 @@ async def promote_quest(
         )
         return
 
-    target, err = await _resolve_target_todo_channel(channel)
+    target, err = await _resolve_eligible_quests_channel(channel)
     if target is None:
         await interaction.response.send_message(err or "No target channel.", ephemeral=True)
         return
@@ -1888,10 +2093,10 @@ async def populate_quests_channel(interaction: discord.Interaction) -> None:
 
 @bot.tree.command(
     name="promote-all-eligible",
-    description="Promote every quest thread whose requirements are met",
+    description="Promote every quest thread whose requirements are met to the eligible-quests forum",
 )
 @app_commands.describe(
-    channel="Optional to-do channel to promote into (defaults to first registered)",
+    channel="Optional destination (defaults to the eligible-quests forum)",
 )
 @app_commands.default_permissions(manage_channels=True)
 async def promote_all_eligible(
@@ -1924,7 +2129,7 @@ async def promote_all_eligible(
         )
         return
 
-    target, err = await _resolve_target_todo_channel(channel)
+    target, err = await _resolve_eligible_quests_channel(channel)
     if target is None:
         await interaction.response.send_message(err or "No target channel.", ephemeral=True)
         return
@@ -1984,6 +2189,85 @@ async def promote_all_eligible(
             lines.append(f"  \u2022 {f}")
         if len(failures) > 5:
             lines.append(f"  ...and {len(failures) - 5} more")
+
+    await interaction.followup.send("\n".join(lines), ephemeral=True)
+
+
+@bot.tree.command(
+    name="migrate-eligible-quests",
+    description="Move quest-named posts from the regular to-do forum into the eligible-quests forum",
+)
+@app_commands.describe(dry_run="If true, report what would move without changing anything")
+@app_commands.default_permissions(manage_channels=True)
+async def migrate_eligible_quests(
+    interaction: discord.Interaction,
+    dry_run: bool = False,
+) -> None:
+    target, err = await _resolve_eligible_quests_channel()
+    if target is None:
+        await interaction.response.send_message(err or "No eligible-quests forum.", ephemeral=True)
+        return
+
+    todo_channels = await get_channels(bot)
+    if not todo_channels:
+        await interaction.response.send_message(
+            embed=build_no_channels_embed(), ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True, thinking=True)
+
+    dest_all: set[str] = set()
+    seen: dict[int, discord.Thread] = {}
+    for t in getattr(target, "threads", []) or []:
+        seen[t.id] = t
+    for t in await _collect_archived_threads(target):
+        seen[t.id] = t
+    dest_all = {_normalize_quest_name(t.name) for t in seen.values()}
+
+    source_threads, _ = await get_open_threads(todo_channels, include_archived=True)
+
+    to_move: list[tuple[discord.Thread, dict]] = []
+    skipped_existing = 0
+    ignored = 0
+    for t in source_threads:
+        status, payload = resolve_quest(t.name)
+        if status != "match":
+            ignored += 1
+            continue
+        quest = payload  # type: ignore[assignment]
+        key = _normalize_quest_name(quest["name"])
+        if key in dest_all:
+            skipped_existing += 1
+            continue
+        to_move.append((t, quest))
+        dest_all.add(key)
+
+    moved = 0
+    failures: list[str] = []
+    if not dry_run:
+        for t, quest in to_move:
+            new_thread, move_err = await _promote_thread(t, quest, target)
+            if new_thread is not None:
+                moved += 1
+            else:
+                failures.append(f"{quest['name']}: {move_err}")
+            await asyncio.sleep(1.0)
+
+    verb = "Would move" if dry_run else "Moved"
+    lines = [
+        f"{verb} **{len(to_move) if dry_run else moved}** quest post(s) to {target.mention}.",
+        f"Skipped **{skipped_existing}** (already in the eligible-quests forum).",
+        f"Ignored **{ignored}** regular to-do(s) (not a known quest title).",
+    ]
+    if dry_run:
+        preview = ", ".join(q["name"] for _, q in to_move[:10])
+        more = f" (+{len(to_move) - 10} more)" if len(to_move) > 10 else ""
+        if to_move:
+            lines.append(f"Would move: {preview}{more}")
+        lines.append("_Dry-run: nothing was moved._")
+    if failures:
+        lines.append("Failures: " + "; ".join(failures[:5]))
 
     await interaction.followup.send("\n".join(lines), ephemeral=True)
 
@@ -2166,6 +2450,7 @@ async def scan_quest_threads(
         stats_by_channel[cid] = (0, 0)
 
     await _add_channel(get_quests_channel_id())
+    await _add_channel(get_eligible_quests_channel_id())
     for cid in load_channel_ids():
         await _add_channel(cid)
     await _add_channel(get_completed_channel_id())

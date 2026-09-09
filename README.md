@@ -8,7 +8,8 @@ A small Discord bot that randomly picks an open to-do thread across one or more 
 
 | Command | Description |
 |---|---|
-| `/pick-todo` | Prompts you to pick a difficulty (Any/Easy/Medium/Hard/Elite), then picks a random open to-do matching it. Includes **Pick Again** and **Change Difficulty** buttons. |
+| `/pick-todo regular` | Difficulty picker, then a random open item from the regular to-do forum (`TODO_CHANNEL_IDS`). |
+| `/pick-todo quests` | Random open post from the **eligible-quests** forum (quests she can do). **Pick Again** re-rolls that pool. |
 | `/set-status status:<Easy\|Medium\|Hard\|Elite\|Completed>` | Run inside a thread to set its status tag. Any existing tag is replaced. |
 | `/complete` | Alias for `/set-status Completed`. |
 
@@ -27,18 +28,27 @@ Registered channel IDs are stored in `channels.json` alongside `bot.py`. The com
 
 ### Quests
 
-Quests get their own workflow because picking a random quest she doesn't meet the requirements for is a bad experience on an ironman. Quest threads live in a dedicated **forum** channel and only get promoted to a regular to-do channel after the bot verifies her account meets every requirement.
+Quests get their own workflow because picking a random quest she doesn't meet the requirements for is a bad experience on an ironman.
+
+- **All quests** (`QUESTS_CHANNEL_ID` / `/set-quests-channel`) — full catalog in `#QUESTS-TO-DO`. Not used by `/pick-todo`.
+- **Eligible quests** (`ELIGIBLE_QUESTS_CHANNEL_ID` / `/set-eligible-quests-channel`) — quests she meets requirements for. `/pick-todo quests` draws from here. `/promote-quest` and `/promote-all-eligible` move posts here (not into the regular to-do forum).
+- **Regular to-dos** (`TODO_CHANNEL_IDS`) — non-quest goals. `/pick-todo regular` draws from here.
+
+Do **not** put the eligible-quests forum ID in `TODO_CHANNEL_IDS`.
 
 | Command | Description |
 |---|---|
 | `/set-rsn username:<str>` | Store her OSRS RSN. Used for all hiscores lookups. |
 | `/set-quests-channel channel:<#forum>` | Register the forum channel that holds one thread per quest. |
 | `/clear-quests-channel` | Unset the quests source channel. |
+| `/set-eligible-quests-channel channel:<#forum>` | Forum for quests she can currently do (`/pick-todo quests`). |
+| `/clear-eligible-quests-channel` | Unset the eligible-quests forum. |
 | `/populate-quests-channel` | One-shot: create a forum post for every OSRS quest in `quests_data.json`. Skips ones already present or already in the completed list. Paced to respect Discord rate limits (~1 post/sec). |
 | `/import-quests names:<str> [replace]` | Bootstrap the completed-quests list from a comma or newline separated list of quest names. Fuzzy-matches to canonical names and reports anything that didn't match. |
 | `/list-completed-quests` | Show tracked completed quests + total QP. |
-| `/promote-quest [channel]` | Run inside a quest thread. Bot fetches her hiscores, checks skill/QP/quest prerequisites, and moves the thread to the to-do channel if all pass. Replies with a detailed breakdown if any requirement fails. |
-| `/promote-all-eligible [channel]` | Bulk-scan every open quest thread and promote each one she meets the requirements for. One hiscores fetch, then sequential moves. Safe to re-run after leveling up. |
+| `/promote-quest [channel]` | Run inside a quest thread in the all-quests forum. Moves it to the **eligible-quests** forum if requirements pass. |
+| `/promote-all-eligible [channel]` | Promote every qualifying all-quests post into the eligible-quests forum. |
+| `/migrate-eligible-quests [dry_run]` | One-shot: move quest-named posts out of the regular to-do forum into the eligible-quests forum. Leaves non-quest to-dos in place. |
 | `/sync-runelite export:<file> [dry_run]` | Attach a RuneLite Quest Helper JSON export. Records finished quests and **moves matching posts from the quests forum (including archived ones) into the completed archive**. Does **not** auto-read `quests.json` from disk. |
 
 **Runelite sync (safe scope)**
@@ -169,10 +179,11 @@ In your Railway service, open **Variables** and add:
 | `TODO_CHANNEL_IDS` | **(recommended on Railway)** Comma-separated list of to-do channel IDs. When set, this overrides `channels.json` and survives redeploys. Example: `123456789,987654321` |
 | `COMPLETED_CHANNEL_ID` | **(recommended on Railway)** Single channel ID (text or forum) where completed threads are moved. When set, overrides `config.json`. |
 | `TODO_CHANNEL_ID` | *(legacy)* Single channel; auto-migrated into `channels.json` on startup. Prefer `TODO_CHANNEL_IDS`. |
-| `QUESTS_CHANNEL_ID` | Forum channel ID that holds quest threads. Overrides `config.json`. |
+| `QUESTS_CHANNEL_ID` | Forum channel ID that holds **all** quest threads before promotion. Overrides `config.json`. |
+| `ELIGIBLE_QUESTS_CHANNEL_ID` | Forum of quests she can currently do (`/pick-todo quests`). Overrides `config.json`. **Do not** also list this ID in `TODO_CHANNEL_IDS`. |
 | `OSRS_USERNAME` | Her OSRS RSN, used for hiscores lookups. Overrides `config.json`. |
 
-**Important on Railway:** `channels.json` and `config.json` are stored on the container filesystem and are wiped on every redeploy. You **must** set `TODO_CHANNEL_IDS`, `COMPLETED_CHANNEL_ID`, and `QUESTS_CHANNEL_ID` as Railway Variables (the forum IDs for `#TO-DO-LIST`, `#COMPLETED`, and `#QUESTS-TO-DO`) or the bot will not know which forums to scan after a deploy. `/sync-runelite` reads the JSON file you attach in Discord, not `quests.json` from the repo.
+**Important on Railway:** `channels.json` and `config.json` are stored on the container filesystem and are wiped on every redeploy. You **must** set `TODO_CHANNEL_IDS`, `COMPLETED_CHANNEL_ID`, `QUESTS_CHANNEL_ID`, and `ELIGIBLE_QUESTS_CHANNEL_ID` as Railway Variables. `/sync-runelite` reads the JSON file you attach in Discord, not `quests.json` from the repo.
 
 These are the same values from your local `.env` file.
 
@@ -205,7 +216,7 @@ For zero cost, keep running `start-bot.bat` locally instead.
 
 ## How it works
 
-- Every `/pick-todo` fetches **live** active threads across all registered channels — new threads appear immediately, no restart needed
+- Every `/pick-todo regular` fetches live threads in registered to-do channels; `/pick-todo quests` fetches the eligible-quests forum (including archived posts)
 - Status is stored as a bracket prefix on the thread name, e.g. `[EASY] Barrows grind`. Recognized tags: `[EASY]`, `[MEDIUM]`, `[HARD]`, `[ELITE]`, `[COMPLETED]` (case-insensitive)
 - `[COMPLETED]` threads are excluded from picks; the other tags act as difficulty filters
 - `/set-status` strips any existing tag before applying the new one, so switching difficulty is safe
