@@ -66,6 +66,19 @@ CHANNELS_FILE = Path(__file__).parent / "channels.json"
 CONFIG_FILE = Path(__file__).parent / "config.json"
 QUESTS_FILE = Path(__file__).parent / "quests_data.json"
 
+TodoChannel = discord.TextChannel | discord.ForumChannel
+
+
+def as_todo_channel(obj: object) -> TodoChannel | None:
+    """Return a text or forum channel from a channel, thread, or None."""
+    if isinstance(obj, (discord.TextChannel, discord.ForumChannel)):
+        return obj
+    if isinstance(obj, discord.Thread) and isinstance(
+        obj.parent, (discord.TextChannel, discord.ForumChannel)
+    ):
+        return obj.parent
+    return None
+
 # OSRS hiscores endpoints. Ironman first; fall back to main hiscores if she
 # de-irons or was never on the ironman table.
 HISCORES_URL_IRON = "https://secure.runescape.com/m=hiscore_oldschool_ironman/index_lite.ws"
@@ -763,6 +776,10 @@ async def recreate_thread_in(
     if not isinstance(target, (discord.TextChannel, discord.ForumChannel)):
         return None, "Target channel must be a text or forum channel."
 
+    unarchive_err = await _ensure_unarchived(thread)
+    if unarchive_err:
+        return None, f"Could not unarchive original thread: {unarchive_err}"
+
     starter_content, starter_author = await get_starter_content(thread)
 
     header_lines: list[str] = []
@@ -1149,10 +1166,10 @@ async def set_status(
                 msg += f"\nNote: {err}"
             if recorded:
                 msg += f"\nAdded **{recorded}** to the completed-quests list."
-            await interaction.followup.send(msg, ephemeral=True)
+            await safe_followup(interaction, msg)
             return
         if err:
-            await interaction.followup.send(err, ephemeral=True)
+            await safe_followup(interaction, err)
             return
 
     try:
@@ -1214,10 +1231,10 @@ async def complete(interaction: discord.Interaction) -> None:
                 msg += f"\nNote: {err}"
             if recorded:
                 msg += f"\nAdded **{recorded}** to the completed-quests list."
-            await interaction.followup.send(msg, ephemeral=True)
+            await safe_followup(interaction, msg)
             return
         if err:
-            await interaction.followup.send(err, ephemeral=True)
+            await safe_followup(interaction, err)
             return
 
     try:
@@ -1249,12 +1266,12 @@ async def complete(interaction: discord.Interaction) -> None:
 @app_commands.default_permissions(manage_channels=True)
 async def register_channel(
     interaction: discord.Interaction,
-    channel: discord.TextChannel | None = None,
+    channel: discord.TextChannel | discord.ForumChannel | None = None,
 ) -> None:
-    target = channel or interaction.channel
-    if not isinstance(target, discord.TextChannel):
+    target = as_todo_channel(channel) or as_todo_channel(interaction.channel)
+    if target is None:
         await interaction.response.send_message(
-            "Please specify a text channel (or run this from inside one).",
+            "Please specify a text or forum channel (or run this from inside one).",
             ephemeral=True,
         )
         return
@@ -1286,12 +1303,12 @@ async def register_channel(
 @app_commands.default_permissions(manage_channels=True)
 async def unregister_channel(
     interaction: discord.Interaction,
-    channel: discord.TextChannel | None = None,
+    channel: discord.TextChannel | discord.ForumChannel | None = None,
 ) -> None:
-    target = channel or interaction.channel
-    if not isinstance(target, discord.TextChannel):
+    target = as_todo_channel(channel) or as_todo_channel(interaction.channel)
+    if target is None:
         await interaction.response.send_message(
-            "Please specify a text channel (or run this from inside one).",
+            "Please specify a text or forum channel (or run this from inside one).",
             ephemeral=True,
         )
         return
@@ -1617,8 +1634,8 @@ async def list_completed_quests(interaction: discord.Interaction) -> None:
 
 
 async def _resolve_target_todo_channel(
-    override: discord.TextChannel | None,
-) -> tuple[discord.TextChannel | None, str | None]:
+    override: TodoChannel | None,
+) -> tuple[TodoChannel | None, str | None]:
     if override is not None:
         return override, None
     ids = load_channel_ids()
@@ -1629,15 +1646,16 @@ async def _resolve_target_todo_channel(
                 ch = await bot.fetch_channel(cid)
             except discord.HTTPException:
                 continue
-        if isinstance(ch, discord.TextChannel):
-            return ch, None
+        target = as_todo_channel(ch)
+        if target is not None:
+            return target, None
     return None, "No accessible to-do channel is registered. Use `/register-channel` first."
 
 
 async def _promote_thread(
     thread: discord.Thread,
     quest: dict,
-    target: discord.TextChannel,
+    target: TodoChannel,
 ) -> tuple[discord.Thread | None, str | None]:
     new_name = quest["name"]
     if len(new_name) > 100:
@@ -1661,7 +1679,7 @@ async def _promote_thread(
 )
 async def promote_quest(
     interaction: discord.Interaction,
-    channel: discord.TextChannel | None = None,
+    channel: discord.TextChannel | discord.ForumChannel | None = None,
 ) -> None:
     thread = interaction.channel
     if not isinstance(thread, discord.Thread):
@@ -1878,7 +1896,7 @@ async def populate_quests_channel(interaction: discord.Interaction) -> None:
 @app_commands.default_permissions(manage_channels=True)
 async def promote_all_eligible(
     interaction: discord.Interaction,
-    channel: discord.TextChannel | None = None,
+    channel: discord.TextChannel | discord.ForumChannel | None = None,
 ) -> None:
     quests_channel_id = get_quests_channel_id()
     if quests_channel_id is None:
@@ -1920,8 +1938,8 @@ async def promote_all_eligible(
         )
         return
 
-    # Only consider active, non-completed threads.
-    threads = [t for t in forum.threads if not is_completed(t)]
+    threads_by_channel, _, _ = await scan_quest_threads(bot, interaction.guild)
+    threads = [t for t in threads_by_channel.get(forum.id, []) if not is_completed(t)]
 
     completed_snapshot = get_completed_quests()
     eligible: list[tuple[discord.Thread, dict]] = []
@@ -2062,6 +2080,49 @@ def parse_runelite_export(
     return set(finished.values()), set(in_progress.values()), set(not_started.values()), meta
 
 
+async def safe_followup(interaction: discord.Interaction, content: str) -> None:
+    """Send an ephemeral followup, ignoring 404s after the source thread was deleted."""
+    try:
+        await interaction.followup.send(content, ephemeral=True)
+        return
+    except discord.NotFound:
+        pass
+    except discord.HTTPException as e:
+        code = getattr(e, "code", None)
+        if getattr(e, "status", None) != 404 and code != 10008:
+            raise
+    try:
+        await interaction.user.send(content)
+    except discord.HTTPException:
+        pass
+
+
+async def _ensure_unarchived(thread: discord.Thread) -> str | None:
+    """Unarchive (and unlock) a thread so it can be read, moved, or deleted."""
+    if not getattr(thread, "archived", False):
+        return None
+    try:
+        await thread.edit(archived=False, locked=False)
+        return None
+    except discord.HTTPException as e:
+        return str(e)
+
+
+async def _collect_archived_threads(
+    channel: discord.abc.GuildChannel,
+) -> list[discord.Thread]:
+    getter = getattr(channel, "archived_threads", None)
+    if getter is None:
+        return []
+    out: list[discord.Thread] = []
+    try:
+        async for t in getter(limit=None):
+            out.append(t)
+    except discord.HTTPException:
+        pass
+    return out
+
+
 async def _resolve_channel(
     bot_obj: commands.Bot,
     channel_id: int,
@@ -2081,19 +2142,18 @@ async def scan_quest_threads(
 ) -> tuple[
     dict[int, list[discord.Thread]],
     dict[int, discord.abc.GuildChannel],
+    dict[int, tuple[int, int]],
 ]:
-    """Return (threads_by_channel, channels_by_id) across all relevant channels.
+    """Return (threads_by_channel, channels_by_id, stats_by_channel).
 
     Includes the quests forum, every registered to-do channel, and the completed
-    archive channel (when configured). Only active threads are considered.
-
-    Uses ``guild.active_threads()`` (an API-backed fetch) as the primary source
-    so we don't miss threads that pre-date the bot's current session or were
-    missed by the cache. Falls back to each channel's cached ``.threads`` list
-    if the API fetch fails.
+    archive channel (when configured). Merges ``guild.active_threads()`` with
+    each forum/text channel's archived thread list so auto-archived forum posts
+    are not invisible. ``stats_by_channel`` is ``channel_id -> (active, archived)``.
     """
     channels_by_id: dict[int, discord.abc.GuildChannel] = {}
     threads_by_channel: dict[int, list[discord.Thread]] = {}
+    stats_by_channel: dict[int, tuple[int, int]] = {}
 
     async def _add_channel(cid: int | None) -> None:
         if cid is None or cid in channels_by_id:
@@ -2103,6 +2163,7 @@ async def scan_quest_threads(
             return
         channels_by_id[cid] = ch
         threads_by_channel[cid] = []
+        stats_by_channel[cid] = (0, 0)
 
     await _add_channel(get_quests_channel_id())
     for cid in load_channel_ids():
@@ -2111,7 +2172,7 @@ async def scan_quest_threads(
 
     interesting_ids = set(channels_by_id.keys())
     if not interesting_ids:
-        return threads_by_channel, channels_by_id
+        return threads_by_channel, channels_by_id, stats_by_channel
 
     api_threads: list[discord.Thread] | None = None
     if guild is not None:
@@ -2125,11 +2186,22 @@ async def scan_quest_threads(
             if t.parent_id in interesting_ids:
                 threads_by_channel[t.parent_id].append(t)
     else:
-        # Fallback: use each channel's cached .threads list.
         for cid, channel in channels_by_id.items():
             threads_by_channel[cid] = list(getattr(channel, "threads", []) or [])
 
-    return threads_by_channel, channels_by_id
+    for cid, channel in channels_by_id.items():
+        active_ids = {t.id for t in threads_by_channel[cid]}
+        active_count = len(active_ids)
+        archived = await _collect_archived_threads(channel)
+        archived_only = 0
+        for t in archived:
+            if t.id not in active_ids:
+                threads_by_channel[cid].append(t)
+                active_ids.add(t.id)
+                archived_only += 1
+        stats_by_channel[cid] = (active_count, archived_only)
+
+    return threads_by_channel, channels_by_id, stats_by_channel
 
 
 def _channel_priority(
@@ -2240,6 +2312,9 @@ def plan_runelite_sync(
 
 async def _safe_delete_thread(thread: discord.Thread) -> str | None:
     """Delete a thread, honoring 429 retry_after once. Returns error string on failure."""
+    unarchive_err = await _ensure_unarchived(thread)
+    if unarchive_err:
+        return f"Could not unarchive: {unarchive_err}"
     try:
         await thread.delete()
         return None
@@ -2331,7 +2406,25 @@ async def sync_runelite(
     # Scan and plan thread cleanups.
     quests_id = get_quests_channel_id()
     completed_id = get_completed_channel_id()
-    threads_by_channel, channels_by_id = await scan_quest_threads(bot, interaction.guild)
+    if quests_id is None:
+        await interaction.followup.send(
+            "No quests forum is set, so I cannot find posts to move. "
+            "Use `/set-quests-channel` and set `QUESTS_CHANNEL_ID` on Railway "
+            "(config.json is wiped on every redeploy).",
+            ephemeral=True,
+        )
+        return
+    if completed_id is None:
+        await interaction.followup.send(
+            "No completed archive channel is set, so finished quest posts cannot be moved. "
+            "Use `/set-completed-channel` and set `COMPLETED_CHANNEL_ID` on Railway.",
+            ephemeral=True,
+        )
+        return
+
+    threads_by_channel, channels_by_id, scan_stats = await scan_quest_threads(
+        bot, interaction.guild
+    )
     plan = plan_runelite_sync(
         finished_names=set(canonical_finished),
         threads_by_channel=threads_by_channel,
@@ -2442,6 +2535,17 @@ async def sync_runelite(
     )
     if dry_run:
         header.append("_Dry-run mode: no changes applied._")
+    q_active, q_archived = scan_stats.get(quests_id, (0, 0))
+    q_total = q_active + q_archived
+    q_ref = _ch_ref(quests_id) if quests_id is not None else "*(not set)*"
+    header.append(
+        f"Scanned **{q_total}** post(s) in {q_ref} ({q_active} active, {q_archived} archived)."
+    )
+    if q_total == 0:
+        header.append(
+            "Found **0** quest-forum posts. Check `/set-quests-channel`, "
+            "`QUESTS_CHANNEL_ID` on Railway, and that the bot can see archived posts."
+        )
 
     lines = list(header)
     lines.append("")

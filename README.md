@@ -16,7 +16,7 @@ A small Discord bot that randomly picks an open to-do thread across one or more 
 
 | Command | Description |
 |---|---|
-| `/register-channel [channel]` | Register a channel (defaults to current) as a to-do channel. |
+| `/register-channel [channel]` | Register a text or forum channel (defaults to current) as a to-do channel. |
 | `/unregister-channel [channel]` | Remove a channel from the registry. |
 | `/create-todo-channel name:<str> [category]` | Create a new text channel and auto-register it. |
 | `/list-todo-channels` | Show all registered channels and the completed archive channel. |
@@ -39,14 +39,14 @@ Quests get their own workflow because picking a random quest she doesn't meet th
 | `/list-completed-quests` | Show tracked completed quests + total QP. |
 | `/promote-quest [channel]` | Run inside a quest thread. Bot fetches her hiscores, checks skill/QP/quest prerequisites, and moves the thread to the to-do channel if all pass. Replies with a detailed breakdown if any requirement fails. |
 | `/promote-all-eligible [channel]` | Bulk-scan every open quest thread and promote each one she meets the requirements for. One hiscores fetch, then sequential moves. Safe to re-run after leveling up. |
-| `/sync-runelite export:<file> [dry_run]` | Reconcile the bot's state with a RuneLite Quest Helper JSON export (upload the file). Safe operations only \u2014 see below. |
+| `/sync-runelite export:<file> [dry_run]` | Attach a RuneLite Quest Helper JSON export. Records finished quests and **moves matching posts from the quests forum (including archived ones) into the completed archive**. Does **not** auto-read `quests.json` from disk. |
 
 **Runelite sync (safe scope)**
 
-`/sync-runelite` takes the JSON export from the Quest Helper plugin (the object with `quests: [{id, name, state}]`) and does the following in one pass:
+`/sync-runelite` only sees the file you **attach** in Discord. `quests.json` sitting in the repo is ignored. The command:
 
-1. **Adds** any newly finished quest to `completed_quests`. Never removes entries \u2014 if the export says a tracked quest isn't finished, that's surfaced as info only.
-2. **Archives stale quest-forum posts.** For any quest the export marks as `FINISHED` that still has an open post in the quests forum, the bot moves it to the configured **completed archive channel** as `[COMPLETED] <quest name>` (same behavior as `/complete`). If no archive channel is configured (`/set-completed-channel`), the post is deleted as a fallback.
+1. **Adds** any newly finished quest to `completed_quests`. Never removes entries — if the export says a tracked quest isn't finished, that's surfaced as info only.
+2. **Archives stale quest-forum posts**, including Discord-auto-archived ones. For any quest the export marks as `FINISHED` that still has a post in the quests forum, the bot unarchives it if needed and moves it to the **completed archive channel** as `[COMPLETED] <quest name>`. If the quests forum or completed channel is not configured, the command **stops and says so** instead of reporting `0/0`.
 3. **Deletes within-channel duplicate threads** for the same canonical quest (keeps the newest).
 4. **Deletes cross-channel duplicates** using a priority order: completed archive > any to-do channel > quests forum.
 
@@ -172,7 +172,7 @@ In your Railway service, open **Variables** and add:
 | `QUESTS_CHANNEL_ID` | Forum channel ID that holds quest threads. Overrides `config.json`. |
 | `OSRS_USERNAME` | Her OSRS RSN, used for hiscores lookups. Overrides `config.json`. |
 
-**Important on Railway:** `channels.json` and `config.json` are stored on the container filesystem and are wiped on every redeploy. Use `TODO_CHANNEL_IDS` and `COMPLETED_CHANNEL_ID` env vars for persistence, or mount a Railway Volume at the repo path.
+**Important on Railway:** `channels.json` and `config.json` are stored on the container filesystem and are wiped on every redeploy. You **must** set `TODO_CHANNEL_IDS`, `COMPLETED_CHANNEL_ID`, and `QUESTS_CHANNEL_ID` as Railway Variables (the forum IDs for `#TO-DO-LIST`, `#COMPLETED`, and `#QUESTS-TO-DO`) or the bot will not know which forums to scan after a deploy. `/sync-runelite` reads the JSON file you attach in Discord, not `quests.json` from the repo.
 
 These are the same values from your local `.env` file.
 
